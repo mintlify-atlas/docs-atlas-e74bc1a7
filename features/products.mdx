@@ -1,0 +1,230 @@
+---
+title: Product Management
+description: Complete product catalog management with image uploads, search functionality, and inventory tracking
+---
+
+## Overview
+
+The Product Management module provides comprehensive tools for managing your product catalog. You can create, edit, and delete products, upload product images, track stock levels, and organize products by categories.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Product CRUD" icon="box">
+    Complete create, read, update, and delete operations for products
+  </Card>
+  <Card title="Image Management" icon="image">
+    Upload, update, and delete product photos with validation
+  </Card>
+  <Card title="Search & Filter" icon="magnifying-glass">
+    Real-time product search by code or name
+  </Card>
+  <Card title="Stock Tracking" icon="warehouse">
+    Monitor inventory levels and product availability
+  </Card>
+</CardGroup>
+
+## Product Workflow
+
+### Creating a Product
+
+When adding a new product to the system, you'll need to provide:
+
+1. **Category** - Assign the product to an existing category
+2. **Product Code** - Unique identifier (validated for duplicates)
+3. **Product Name** - Descriptive name
+4. **Price** - Numeric value
+5. **Stock** - Initial inventory quantity
+6. **Description** - Optional product details
+7. **Photo** - Optional product image (PNG, JPG, JPEG)
+
+<Note>
+  Product codes must be unique. The system will prevent duplicate entries and display an error if the code already exists.
+</Note>
+
+### Validation Rules
+
+The system enforces strict validation rules when creating or updating products:
+
+```php
+// ProductoController.php:41-48
+$request->validate([
+    "txtcategoria" => "required",
+    "txtcodigoproducto" => "required",
+    "txtnombreproducto" => "required",
+    "txtprecioproducto" => "required|numeric",
+    "txtstock" => "required|numeric",
+    "txtfoto" => "mimes:png,jpg,jpeg"
+]);
+```
+
+### Duplicate Detection
+
+Before creating a product, the system checks for existing products with the same code:
+
+```php
+// ProductoController.php:52-55
+$producto = DB::select("select count(*) as total from producto where codigo=?", 
+    [$request->txtcodigoproducto]);
+if ($producto[0]->total > 0) {
+    return back()->with("INCORRECTO", "El producto ya se encuentra registrado");
+}
+```
+
+## Viewing Products
+
+The product index displays a paginated list of all products with:
+
+- Product code and name
+- Associated category
+- Current price
+- Available stock
+- Product photo
+- Status indicator
+
+```php
+// ProductoController.php:19-22
+$datos = DB::table("producto")
+    ->join("categoria", "producto.id_categoria", "=", "categoria.id_categoria")
+    ->select("producto.*", "categoria.nombre as categoria")
+    ->paginate(10);
+```
+
+<Note>
+  Products are displayed 10 per page with automatic pagination controls.
+</Note>
+
+## Updating Products
+
+### Editing Product Information
+
+You can update all product details except the product ID. The system validates:
+
+- **Required fields** - Category, code, name, price, and stock
+- **Numeric values** - Price and stock must be valid numbers
+- **Unique codes** - Prevents conflicts with other products
+
+```php
+// ProductoController.php:142-149
+$duplicidadCodigo = DB::select(
+    " select count(*) as total from producto where codigo=? and id_producto<>? ",
+    [$request->txtcodigoproducto, $id]
+);
+
+if ($duplicidadCodigo[0]->total > 0) {
+    return back()->with("INCORRECTO", "El codigo ya se encuentra registrado");
+}
+```
+
+### Managing Product Images
+
+<Accordion title="Upload or Update Product Photo">
+  Upload a new product image or replace an existing one. Images are stored with the format `{product_id}-{original_filename}` in the `storage/app/public/FOTO-PRODUCTOS/` directory.
+
+  ```php
+  // ProductoController.php:229-236
+  try {
+      $foto = $request->file("foto");
+      $nombreFoto = $id . "-" . $foto->getClientOriginalName();
+      $ruta = storage_path("app/public/FOTO-PRODUCTOS/" . $nombreFoto);
+      copy($foto, $ruta);
+  } catch (\Throwable $th) {
+      $nombreFoto = "";
+  }
+  ```
+
+  **Accepted formats:** PNG, JPG, JPEG
+</Accordion>
+
+<Accordion title="Delete Product Photo">
+  Remove a product's photo while keeping all other product information intact. The photo file is deleted from storage and the database field is cleared.
+
+  ```php
+  // ProductoController.php:258-267
+  $nombreFoto = DB::select("select foto from producto where id_producto=?", [$id]);
+  $ruta = storage_path("app/public/FOTO-PRODUCTOS/" . $nombreFoto[0]->foto);
+
+  try {
+      $eliminar = unlink($ruta);
+      $actualizarCampo = DB::update("update producto set foto='' where id_producto=?", [$id]);
+  } catch (\Throwable $th) {
+      $eliminar = false;
+  }
+  ```
+</Accordion>
+
+## Search Functionality
+
+The product search feature allows you to quickly find products by:
+
+- **Product Code** - Partial or exact match
+- **Product Name** - Partial or exact match
+
+The search returns up to 5 matching results with category information:
+
+```php
+// ProductoController.php:206-217
+$datos = DB::select(" SELECT
+    producto.*,
+    categoria.nombre as cate
+    FROM producto
+    INNER JOIN categoria ON producto.id_categoria = categoria.id_categoria 
+    where codigo like '%$id%' or producto.nombre like '%$id%' 
+    limit 5
+");
+
+return response()->json([
+    "success" => true,
+    "dato" => $datos
+], 200);
+```
+
+<Note>
+  The search API returns JSON responses and can be integrated into sales processes or inventory checks.
+</Note>
+
+## Deleting Products
+
+When deleting a product:
+
+1. The system verifies the product exists
+2. Attempts to remove the product record
+3. Returns success or error feedback
+
+```php
+// ProductoController.php:176-191
+$verificar = DB::select(" select count(*) as total from producto where codigo=?", [$id]);
+if ($verificar[0]->total <= 0) {
+    return back()->with("INCORRECTO", "El producto no existe");
+}
+
+try {
+    $eliminar=DB::delete(" delete from producto where codigo=?", [$id]);
+} catch (\Throwable $th) {
+    $eliminar = false;
+}
+```
+
+<Warning>
+  Deleting a product may fail if it's referenced in sales records or other transactions. The system will display an error message in such cases.
+</Warning>
+
+## Database Structure
+
+Products are stored with the following key fields:
+
+- `id_producto` - Primary key
+- `id_categoria` - Foreign key to category
+- `codigo` - Unique product code
+- `nombre` - Product name
+- `precio` - Product price
+- `stock` - Available quantity
+- `descripcion` - Product description
+- `foto` - Image filename
+- `estado` - Product status (1 = active)
+
+## Related Features
+
+- [Categories](/features/categories) - Organize products into categories
+- [Inventory](/features/inventory) - Track stock movements and entries
+- Sales - Process product sales (coming soon)

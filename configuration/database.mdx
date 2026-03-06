@@ -1,0 +1,442 @@
+---
+title: 'Database Configuration'
+description: 'Complete guide to database setup, schema, and configuration for Sistema de Ventas'
+---
+
+## Overview
+
+Sistema de Ventas uses MySQL as its primary database engine. This guide covers database setup, schema structure, connection configuration, and migrations.
+
+## Database Requirements
+
+<Note>
+  Sistema de Ventas requires MySQL 8.0 or higher with support for `utf8mb4` character encoding.
+</Note>
+
+- **Database Engine**: MySQL 8.0+
+- **Character Set**: utf8mb4
+- **Collation**: utf8mb4_general_ci
+- **PHP Extension**: PDO MySQL driver
+
+## Database Setup
+
+### Step 1: Create Database
+
+<Steps>
+  <Step title="Create the database">
+    Connect to your MySQL server and create a new database:
+
+    ```sql
+    CREATE DATABASE tutorial_sistema_ventas CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+    ```
+  </Step>
+
+  <Step title="Import the schema">
+    Import the provided SQL file to create all tables with sample data:
+
+    ```bash
+    mysql -u root -p tutorial_sistema_ventas < BD/tutorial_sistema_ventas.sql
+    ```
+  </Step>
+
+  <Step title="Verify installation">
+    Check that all tables were created successfully:
+
+    ```sql
+    USE tutorial_sistema_ventas;
+    SHOW TABLES;
+    ```
+
+    You should see 10 tables: `categoria`, `cliente`, `empresa`, `entrada`, `producto`, `proveedor`, `tipo_usuario`, `usuario`, `venta`, and `venta_detalle`.
+  </Step>
+</Steps>
+
+## Database Schema
+
+The system uses a relational database schema with the following core tables:
+
+### Core Tables
+
+#### usuario (Users)
+Stores system user accounts with role-based access.
+
+```sql
+CREATE TABLE `usuario` (
+  `id_usuario` int NOT NULL AUTO_INCREMENT,
+  `tipo_usuario` int NOT NULL,
+  `nombre` varchar(100) DEFAULT NULL,
+  `apellido` varchar(100) DEFAULT NULL,
+  `usuario` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(100) DEFAULT NULL,
+  `correo` varchar(100) NOT NULL,
+  `foto` varchar(255) DEFAULT NULL,
+  `estado` tinyint NOT NULL,
+  PRIMARY KEY (`id_usuario`),
+  KEY `fk1` (`tipo_usuario`),
+  CONSTRAINT `fk1` FOREIGN KEY (`tipo_usuario`) 
+    REFERENCES `tipo_usuario` (`id_tipo`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+**Key Fields:**
+- `usuario`: Username field (used for login instead of email)
+- `password`: Bcrypt hashed password
+- `tipo_usuario`: Foreign key to user roles (1=administrador, 2=empleado)
+- `estado`: User status (1=active, 0=inactive)
+
+#### tipo_usuario (User Types)
+Defines user roles and permissions.
+
+```sql
+CREATE TABLE `tipo_usuario` (
+  `id_tipo` int NOT NULL AUTO_INCREMENT,
+  `tipo` varchar(100) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id_tipo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+**Default Roles:**
+- `1`: administrador (Administrator)
+- `2`: empleado (Employee)
+
+#### categoria (Categories)
+Product category management.
+
+```sql
+CREATE TABLE `categoria` (
+  `id_categoria` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id_categoria`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### producto (Products)
+Product catalog with inventory management.
+
+```sql
+CREATE TABLE `producto` (
+  `id_producto` int NOT NULL AUTO_INCREMENT,
+  `id_categoria` int NOT NULL,
+  `codigo` varchar(255) DEFAULT NULL,
+  `nombre` varchar(50) NOT NULL,
+  `precio` decimal(10,2) NOT NULL,
+  `stock` int NOT NULL,
+  `descripcion` varchar(255) DEFAULT NULL,
+  `foto` varchar(255) DEFAULT NULL,
+  `estado` tinyint NOT NULL,
+  PRIMARY KEY (`id_producto`),
+  KEY `fk5` (`id_categoria`),
+  CONSTRAINT `fk5` FOREIGN KEY (`id_categoria`) 
+    REFERENCES `categoria` (`id_categoria`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### cliente (Customers)
+Customer information management.
+
+```sql
+CREATE TABLE `cliente` (
+  `id_cliente` int NOT NULL AUTO_INCREMENT,
+  `dni` varchar(50) DEFAULT NULL,
+  `nombre` varchar(100) DEFAULT '',
+  `apellido` varchar(100) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(255) DEFAULT NULL,
+  `correo` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id_cliente`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### proveedor (Suppliers)
+Supplier management for inventory.
+
+```sql
+CREATE TABLE `proveedor` (
+  `id_proveedor` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) DEFAULT NULL,
+  `apellido` varchar(100) DEFAULT NULL,
+  `dni` varchar(50) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(100) DEFAULT NULL,
+  `ruc` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id_proveedor`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### empresa (Company)
+Company profile and configuration.
+
+```sql
+CREATE TABLE `empresa` (
+  `id_empresa` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(255) DEFAULT NULL,
+  `ubicacion` varchar(255) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT '',
+  `ruc` varchar(50) DEFAULT NULL,
+  `correo` varchar(100) DEFAULT NULL,
+  `foto` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id_empresa`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+### Transaction Tables
+
+#### venta (Sales)
+Sales transaction headers.
+
+```sql
+CREATE TABLE `venta` (
+  `id_venta` int NOT NULL AUTO_INCREMENT,
+  `id_cliente` int NOT NULL,
+  `id_usuario` int NOT NULL,
+  `fecha` datetime NOT NULL,
+  `total` decimal(10,2) NOT NULL,
+  `descuento` decimal(10,2) DEFAULT '0.00',
+  `pagoTotal` decimal(10,2) DEFAULT NULL,
+  `estado` tinyint DEFAULT NULL,
+  PRIMARY KEY (`id_venta`),
+  KEY `fk3` (`id_cliente`),
+  KEY `fk4` (`id_usuario`),
+  CONSTRAINT `fk3` FOREIGN KEY (`id_cliente`) 
+    REFERENCES `cliente` (`id_cliente`) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk4` FOREIGN KEY (`id_usuario`) 
+    REFERENCES `usuario` (`id_usuario`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### venta_detalle (Sales Details)
+Line items for each sale.
+
+```sql
+CREATE TABLE `venta_detalle` (
+  `id_venta_detalle` int NOT NULL AUTO_INCREMENT,
+  `id_venta` int NOT NULL,
+  `id_producto` int NOT NULL,
+  `precio` decimal(10,2) DEFAULT NULL,
+  `cantidad` int DEFAULT NULL,
+  `subtotal` decimal(10,2) DEFAULT NULL,
+  `estado` tinyint DEFAULT NULL,
+  PRIMARY KEY (`id_venta_detalle`),
+  KEY `fk2` (`id_producto`),
+  KEY `venta` (`id_venta`),
+  CONSTRAINT `fk2` FOREIGN KEY (`id_producto`) 
+    REFERENCES `producto` (`id_producto`) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `venta` FOREIGN KEY (`id_venta`) 
+    REFERENCES `venta` (`id_venta`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+#### entrada (Stock Entries)
+Inventory receiving transactions.
+
+```sql
+CREATE TABLE `entrada` (
+  `id_entrada` int NOT NULL AUTO_INCREMENT,
+  `id_producto` int NOT NULL,
+  `id_proveedor` int DEFAULT NULL,
+  `cantidad` int NOT NULL,
+  `precio` decimal(10,2) NOT NULL,
+  `fecha` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_entrada`),
+  KEY `fk7` (`id_producto`),
+  KEY `fk8` (`id_proveedor`),
+  CONSTRAINT `fk7` FOREIGN KEY (`id_producto`) 
+    REFERENCES `producto` (`id_producto`) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk8` FOREIGN KEY (`id_proveedor`) 
+    REFERENCES `proveedor` (`id_proveedor`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+## Connection Configuration
+
+### Environment Variables
+
+Configure your database connection in the `.env` file:
+
+```bash .env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sisreservacita
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+<Warning>
+  The default `.env.example` shows `DB_DATABASE=sisreservacita`, but the actual database name should be `tutorial_sistema_ventas` based on the SQL schema.
+</Warning>
+
+### Configuration File
+
+The database configuration is located at `config/database.php`:
+
+```php config/database.php
+'mysql' => [
+    'driver' => 'mysql',
+    'url' => env('DATABASE_URL'),
+    'host' => env('DB_HOST', '127.0.0.1'),
+    'port' => env('DB_PORT', '3306'),
+    'database' => env('DB_DATABASE', 'forge'),
+    'username' => env('DB_USERNAME', 'forge'),
+    'password' => env('DB_PASSWORD', ''),
+    'unix_socket' => env('DB_SOCKET', ''),
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+    'prefix' => '',
+    'prefix_indexes' => true,
+    'strict' => false,
+    'engine' => null,
+    'options' => extension_loaded('pdo_mysql') ? array_filter([
+        PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+    ]) : [],
+],
+```
+
+**Key Settings:**
+- `strict` is set to `false` to allow more flexible SQL queries
+- `collation` uses `utf8mb4_unicode_ci` by default
+- SSL support is available via `MYSQL_ATTR_SSL_CA` environment variable
+
+## Testing Connection
+
+Test your database connection using Artisan:
+
+```bash
+php artisan db:show
+```
+
+Or run a simple query:
+
+```bash
+php artisan tinker
+>>> DB::connection()->getPdo();
+```
+
+## Migrations
+
+### Available Migrations
+
+The system includes these Laravel migrations:
+
+<CodeGroup>
+```php users
+// database/migrations/2014_10_12_000000_create_users_table.php
+// Default Laravel users table (not used by the system)
+```
+
+```php password_resets
+// database/migrations/2014_10_12_100000_create_password_resets_table.php
+// Stores password reset tokens
+Schema::create('password_resets', function (Blueprint $table) {
+    $table->string('email')->index();
+    $table->string('token');
+    $table->timestamp('created_at')->nullable();
+});
+```
+
+```php failed_jobs
+// database/migrations/2019_08_19_000000_create_failed_jobs_table.php
+// Tracks failed queue jobs
+```
+
+```php personal_access_tokens
+// database/migrations/2019_12_14_000001_create_personal_access_tokens_table.php
+// Laravel Sanctum API tokens
+```
+</CodeGroup>
+
+<Note>
+  The main application tables are created via the SQL import file rather than Laravel migrations. The migration files are primarily for Laravel's built-in authentication features.
+</Note>
+
+### Running Migrations
+
+```bash
+php artisan migrate
+```
+
+### Rolling Back Migrations
+
+```bash
+php artisan migrate:rollback
+```
+
+## Troubleshooting
+
+### Connection Refused
+
+If you see "Connection refused" errors:
+
+1. Verify MySQL is running:
+   ```bash
+   sudo systemctl status mysql
+   ```
+
+2. Check the host and port in `.env`
+3. Verify user credentials
+
+### Access Denied
+
+```bash
+ERROR 1045 (28000): Access denied for user 'root'@'localhost'
+```
+
+**Solution:** Grant proper permissions:
+
+```sql
+GRANT ALL PRIVILEGES ON tutorial_sistema_ventas.* TO 'root'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### Character Encoding Issues
+
+If you see garbled Spanish characters:
+
+1. Ensure database charset is `utf8mb4`
+2. Verify collation is `utf8mb4_general_ci`
+3. Check your MySQL client encoding:
+   ```sql
+   SHOW VARIABLES LIKE 'character_set%';
+   ```
+
+### Foreign Key Constraints
+
+All tables use cascading deletes and updates. Be careful when deleting records:
+
+<Warning>
+  Deleting a `categoria` will cascade delete all associated `producto` records, which will also cascade to `venta_detalle` and `entrada` records.
+</Warning>
+
+## Best Practices
+
+1. **Backups**: Regularly backup your database:
+   ```bash
+   mysqldump -u root -p tutorial_sistema_ventas > backup_$(date +%Y%m%d).sql
+   ```
+
+2. **Indexes**: The schema includes proper indexes on foreign keys for optimal query performance
+
+3. **Transactions**: Use database transactions for critical operations like sales processing
+
+4. **Connection Pooling**: Consider using persistent connections in production
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Configuration" icon="gear" href="/configuration/environment">
+    Configure all environment variables
+  </Card>
+  <Card title="Authentication Setup" icon="lock" href="/configuration/authentication">
+    Set up user authentication
+  </Card>
+</CardGroup>

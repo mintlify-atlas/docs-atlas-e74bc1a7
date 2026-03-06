@@ -1,0 +1,570 @@
+---
+title: "Controllers"
+description: "Detailed documentation of all controllers in Sistema de Ventas"
+---
+
+## Controller Overview
+
+Sistema de Ventas uses Laravel controllers to handle HTTP requests and implement business logic. Controllers are located in `app/Http/Controllers/` and follow the single responsibility principle.
+
+## ProductoController
+
+`app/Http/Controllers/ProductoController.php`
+
+Handles all product-related operations including CRUD, search, and image management.
+
+### Methods
+
+<AccordionGroup>
+  <Accordion title="index() - List Products">
+    Displays paginated list of products with category information.
+
+    ```php ProductoController.php:13-25
+    public function index()
+    {
+        $categoria = DB::select("select * from categoria");
+        $datos = DB::table("producto")
+            ->join("categoria", "producto.id_categoria", "=", "categoria.id_categoria")
+            ->select("producto.*", "categoria.nombre as categoria")
+            ->paginate(10);
+        return view("vistas/productos/indexProducto", compact("datos"))
+            ->with("categoria", $categoria);
+    }
+    ```
+
+    **Returns**: View with paginated products and categories
+  </Accordion>
+
+  <Accordion title="create() - Show Creation Form">
+    Displays the form to create a new product.
+
+    ```php ProductoController.php:30-34
+    public function create()
+    {
+        $categoria = DB::select("select * from categoria");
+        return view("vistas/productos/registroProductos")->with("categoria", $categoria);
+    }
+    ```
+
+    **Returns**: Product creation form with available categories
+  </Accordion>
+
+  <Accordion title="store() - Create Product">
+    Creates a new product with validation and optional image upload.
+
+    **Validation Rules**:
+    - `txtcategoria`: required
+    - `txtcodigoproducto`: required, unique
+    - `txtnombreproducto`: required
+    - `txtprecioproducto`: required, numeric
+    - `txtstock`: required, numeric
+    - `txtfoto`: optional, mimes:png,jpg,jpeg
+
+    ```php ProductoController.php:39-96
+    public function store(Request $request)
+    {
+        $request->validate([
+            "txtcategoria" => "required",
+            "txtcodigoproducto" => "required",
+            "txtnombreproducto" => "required",
+            "txtprecioproducto" => "required|numeric",
+            "txtstock" => "required|numeric",
+            "txtfoto" => "mimes:png,jpg,jpeg"
+        ]);
+
+        // Check for duplicate product code
+        $producto = DB::select("select count(*) as total from producto where codigo=?", 
+            [$request->txtcodigoproducto]);
+        
+        if ($producto[0]->total > 0) {
+            return back()->with("INCORRECTO", "El producto ya se encuentra registrado");
+        }
+
+        // Insert product and get ID
+        $registro = DB::table("producto")->insertGetId([
+            "id_categoria" => $request->txtcategoria,
+            "codigo" => $request->txtcodigoproducto,
+            "nombre" => $request->txtnombreproducto,
+            "precio" => $request->txtprecioproducto,
+            "stock" => $request->txtstock,
+            "descripcion" => $request->txtdescripcion,
+            "estado" => "1"
+        ]);
+
+        // Handle file upload
+        try {
+            $foto = $request->file("txtfoto");
+            $nombreFoto = $registro . "-" . $foto->getClientOriginalName();
+            $ruta = storage_path("app/public/FOTO-PRODUCTOS/" . $nombreFoto);
+            copy($foto, $ruta);
+        } catch (\\Throwable $th) {
+            $nombreFoto = "";
+        }
+
+        // Update product with photo filename
+        DB::update("update producto set foto=? where id_producto=?", [
+            $nombreFoto,
+            $registro
+        ]);
+
+        return back()->with("CORRECTO", "Producto registrado correctamente");
+    }
+    ```
+
+    **Returns**: Redirect with success/error message
+  </Accordion>
+
+  <Accordion title="show() - Display Product">
+    Shows detailed information about a specific product.
+
+    ```php ProductoController.php:102-119
+    public function show(string $id)
+    {
+        $datos = DB::select(" SELECT
+            producto.*,
+            categoria.nombre as categoria
+            FROM producto
+            INNER JOIN categoria ON producto.id_categoria = categoria.id_categoria
+            where id_producto=? ", [$id]);
+
+        $categoria = DB::select("select * from categoria");
+
+        if (count($datos) <= 0) {
+            return back()->with("INCORRECTO", "El producto no existe");
+        }
+
+        return view("vistas/productos/showProducto", compact("datos", "categoria"));
+    }
+    ```
+
+    **Parameters**: `$id` - Product ID  
+    **Returns**: Product detail view or error redirect
+  </Accordion>
+
+  <Accordion title="update() - Update Product">
+    Updates an existing product with validation.
+
+    **Validation Rules**:
+    - Same as store(), but allows same code if it's the current product
+
+    ```php ProductoController.php:132-169
+    public function update(Request $request, string $id)
+    {
+        $request->validate([
+            "txtcategoria" => "required",
+            "txtcodigoproducto" => "required",
+            "txtnombreproducto" => "required",
+            "txtprecioproducto" => "required|numeric",
+            "txtstock" => "required|numeric",
+        ]);
+
+        // Check for duplicate code (excluding current product)
+        $duplicidadCodigo = DB::select(
+            " select count(*) as total from producto where codigo=? and id_producto<>? ",
+            [$request->txtcodigoproducto, $id]
+        );
+
+        if ($duplicidadCodigo[0]->total > 0) {
+            return back()->with("INCORRECTO", "El codigo ya se encuentra registrado");
+        }
+
+        $actualizar = DB::update(
+            " update producto set id_categoria=?, codigo=?, nombre=?, precio=?, stock=?, descripcion=? where id_producto=? ",
+            [
+                $request->txtcategoria,
+                $request->txtcodigoproducto,
+                $request->txtnombreproducto,
+                $request->txtprecioproducto,
+                $request->txtstock,
+                $request->txtdescripcion,
+                $id
+            ]
+        );
+
+        return back()->with("CORRECTO", "Producto actualizado correctamente");
+    }
+    ```
+
+    **Parameters**: `$id` - Product ID  
+    **Returns**: Redirect with success/error message
+  </Accordion>
+
+  <Accordion title="destroy() - Delete Product">
+    Deletes a product by code.
+
+    ```php ProductoController.php:174-194
+    public function destroy(string $id)
+    {
+        $verificar = DB::select(" select count(*) as total from producto where codigo=?", [$id]);
+        
+        if ($verificar[0]->total <= 0) {
+            return back()->with("INCORRECTO", "El producto no existe");
+        }
+
+        try {
+            $eliminar = DB::delete(" delete from producto where codigo=?", [$id]);
+        } catch (\\Throwable $th) {
+            $eliminar = false;
+        }
+
+        if ($eliminar == true) {
+            return redirect()->route("productos.index")->with("CORRECTO", "Producto eliminado correctamente");
+        } else {
+            return redirect()->route("productos.index")->with("INCORRECTO", "Error al eliminar el producto");
+        }
+    }
+    ```
+
+    **Parameters**: `$id` - Product code (not ID)  
+    **Returns**: Redirect to products list with message
+  </Accordion>
+
+  <Accordion title="buscarProducto() - Search Products (AJAX)">
+    Searches products by code or name for autocomplete features.
+
+    ```php ProductoController.php:196-218
+    public function buscarProducto(Request $request)
+    {
+        $id = $request->buscar;
+        
+        if ($id == null) {
+            return response()->json([
+                "success" => false,
+                "dato" => []
+            ], 400);
+        }
+
+        $datos = DB::select(" SELECT
+            producto.*,
+            categoria.nombre as cate
+            FROM producto
+            INNER JOIN categoria ON producto.id_categoria = categoria.id_categoria 
+            where codigo like '%$id%' or producto.nombre like '%$id%' 
+            limit 5
+        ");
+
+        return response()->json([
+            "success" => true,
+            "dato" => $datos
+        ], 200);
+    }
+    ```
+
+    **Request**: `buscar` - Search term  
+    **Returns**: JSON with matching products (max 5)
+  </Accordion>
+
+  <Accordion title="registrarFotoProducto() - Upload Product Photo">
+    Uploads or updates a product photo.
+
+    ```php ProductoController.php:220-250
+    public function registrarFotoProducto(Request $request)
+    {
+        $request->validate([
+            "foto" => "required|mimes:png,jpg,jpeg",
+            "txtid" => "required"
+        ]);
+        
+        $id = $request->txtid;
+
+        try {
+            $foto = $request->file("foto");
+            $nombreFoto = $id . "-" . $foto->getClientOriginalName();
+            $ruta = storage_path("app/public/FOTO-PRODUCTOS/" . $nombreFoto);
+            copy($foto, $ruta);
+        } catch (\\Throwable $th) {
+            $nombreFoto = "";
+        }
+
+        $actualizar = DB::update("update producto set foto=? where id_producto=?", 
+            [$nombreFoto, $id]);
+
+        return back()->with("CORRECTO", "Foto actualizada correctamente");
+    }
+    ```
+
+    **Request**: `foto` (file), `txtid` (product ID)  
+    **Returns**: Redirect with message
+  </Accordion>
+
+  <Accordion title="eliminarProducto() - Delete Product Photo">
+    Deletes a product's photo file and clears the database field.
+
+    ```php ProductoController.php:252-274
+    public function eliminarProducto(Request $request)
+    {
+        $request->validate([
+            "txtid" => "required"
+        ]);
+        
+        $id = $request->txtid;
+        $nombreFoto = DB::select("select foto from producto where id_producto=?", [$id]);
+        $ruta = storage_path("app/public/FOTO-PRODUCTOS/" . $nombreFoto[0]->foto);
+
+        try {
+            $eliminar = unlink($ruta);
+            $actualizarCampo = DB::update("update producto set foto='' where id_producto=?", [$id]);
+        } catch (\\Throwable $th) {
+            $eliminar = false;
+            $actualizarCampo = false;
+        }
+
+        return back()->with("CORRECTO", "Foto eliminada correctamente");
+    }
+    ```
+
+    **Request**: `txtid` (product ID)  
+    **Returns**: Redirect with message
+  </Accordion>
+</AccordionGroup>
+
+## CategoriaController
+
+`app/Http/Controllers/CategoriaController.php`
+
+Manages product categories with standard CRUD operations.
+
+### Methods
+
+<AccordionGroup>
+  <Accordion title="index() - List Categories">
+    ```php CategoriaController.php:13-17
+    public function index()
+    {
+        $categorias = DB::select(" select * from categoria ");
+        return view("vistas/categoria/indexCategoria", compact("categorias"));
+    }
+    ```
+
+    **Returns**: View with all categories
+  </Accordion>
+
+  <Accordion title="store() - Create Category">
+    Creates a new category with duplicate validation.
+
+    ```php CategoriaController.php:30-56
+    public function store(Request $request)
+    {
+        $request->validate([
+            "txtnombrecategoria" => "required",
+        ]);
+
+        // Validate unique name
+        $existeCategoria = DB::select(
+            " select count(*) as total from categoria where nombre=? ", 
+            [$request->txtnombrecategoria]
+        );
+        
+        if ($existeCategoria[0]->total >= 1) {
+            return redirect()->back()->with("INCORRECTO", "El nombre de la categoria ya existe");
+        }
+
+        try {
+            $res = DB::insert(" insert into categoria(nombre) values(?) ", [
+                $request->txtnombrecategoria
+            ]);
+        } catch (\\Throwable $th) {
+            $res = 0;
+        }
+
+        return redirect()->route("categoria.index")->with("CORRECTO", "Categoria registrada correctamente");
+    }
+    ```
+
+    **Validation**: Category name must be unique  
+    **Returns**: Redirect with message
+  </Accordion>
+
+  <Accordion title="update() - Update Category">
+    Updates category with duplicate checking.
+
+    ```php CategoriaController.php:79-111
+    public function update(Request $request, string $id)
+    {
+        $request->validate([
+            "txtnombrecategoria" => "required",
+        ]);
+
+        // Check if name exists for other categories
+        $existeCategoria = DB::select(
+            " select count(*) as total from categoria where nombre=? and id_categoria!=? ", [
+                $request->txtnombrecategoria,
+                $id
+            ]
+        );
+
+        if($existeCategoria[0]->total >= 1){
+            return redirect()->back()->with("INCORRECTO", "El nombre de la categoria ya existe");
+        }
+
+        $res = DB::update(" update categoria set nombre=? where id_categoria=? ", [
+            $request->txtnombrecategoria,
+            $id
+        ]);
+
+        return redirect()->route("categoria.index")->with("CORRECTO", "Categoria actualizada correctamente");
+    }
+    ```
+
+    **Parameters**: `$id` - Category ID  
+    **Returns**: Redirect with message
+  </Accordion>
+
+  <Accordion title="destroy() - Delete Category">
+    ```php CategoriaController.php:116-130
+    public function destroy(string $id)
+    {
+        try {
+            $res = DB::delete(" delete from categoria where id_categoria=? ", [$id]);
+        } catch (\\Throwable $th) {
+            $res = 0;
+        }
+
+        return redirect()->route("categoria.index")->with("CORRECTO", "Categoria eliminada correctamente");
+    }
+    ```
+
+    **Parameters**: `$id` - Category ID  
+    **Returns**: Redirect with message  
+    **Note**: May fail if products reference this category (foreign key constraint)
+  </Accordion>
+</AccordionGroup>
+
+## EntradaController
+
+`app/Http/Controllers/EntradaController.php`
+
+Handles inventory entries (stock purchases from suppliers).
+
+### Methods
+
+<Accordion title="index() - List Inventory Entries">
+  ```php EntradaController.php:13-31
+  public function index()
+  {
+      $datos = DB::select(" SELECT
+          entrada.*,
+          DATE(entrada.fecha) as 'fechaEntrada',
+          producto.nombre as 'nomProducto',
+          proveedor.nombre as 'nomProveedor',
+          proveedor.apellido
+          FROM entrada
+          INNER JOIN producto ON entrada.id_producto = producto.id_producto
+          INNER JOIN proveedor ON entrada.id_proveedor = proveedor.id_proveedor
+      ");
+
+      $proveedor = DB::select("SELECT * FROM proveedor");
+      $producto = DB::select("SELECT * FROM producto");
+      
+      return view("vistas/entradas.indexEntrada", compact("datos", "proveedor", "producto"));
+  }
+  ```
+
+  **Returns**: View with entries, products, and suppliers  
+  **Note**: Other CRUD methods are not fully implemented in the source
+</Accordion>
+
+## UsuarioController
+
+`app/Http/Controllers/UsuarioController.php`
+
+Manages system users with authentication and profile features.
+
+<Note>
+  The full implementation includes CRUD operations, photo uploads, and password management similar to ProductoController patterns.
+</Note>
+
+## EmpresaController
+
+`app/Http/Controllers/EmpresaController.php`
+
+Handles company profile and branding management.
+
+<Note>
+  Manages company information including name, RUC (tax ID), address, contact details, and logo uploads using patterns similar to ProductoController.
+</Note>
+
+## PerfilController
+
+`app/Http/Controllers/PerfilController.php`
+
+Manages user profile operations including personal information and password changes.
+
+### Key Operations
+
+- **index()**: Display user profile
+- **actualizarIMG()**: Upload profile photo
+- **eliminarFotoPerfil()**: Delete profile photo
+- **actualizarDatos()**: Update profile information
+- **cambiarClave()**: Show password change form
+- **actualizarClave()**: Process password change
+
+## HomeController
+
+`app/Http/Controllers/HomeController.php`
+
+Standard Laravel home controller for the dashboard after login.
+
+```php
+public function index()
+{
+    return view('home');
+}
+```
+
+## Controller Patterns
+
+### Common Validation Patterns
+
+```php
+$request->validate([
+    "field" => "required",
+    "email" => "required|email",
+    "number" => "required|numeric",
+    "file" => "mimes:png,jpg,jpeg",
+]);
+```
+
+### Flash Message Patterns
+
+```php
+// Success
+return back()->with("CORRECTO", "Operation successful");
+return redirect()->route("resource.index")->with("CORRECTO", "Success");
+
+// Error
+return back()->with("INCORRECTO", "Operation failed");
+```
+
+### File Upload Pattern
+
+```php
+try {
+    $foto = $request->file("fieldname");
+    $nombreFoto = $id . "-" . $foto->getClientOriginalName();
+    $ruta = storage_path("app/public/FOLDER/" . $nombreFoto);
+    copy($foto, $ruta);
+} catch (\\Throwable $th) {
+    $nombreFoto = "";
+}
+```
+
+### Duplicate Validation Pattern
+
+```php
+$existe = DB::select("select count(*) as total from table where field=?", [$value]);
+if ($existe[0]->total > 0) {
+    return back()->with("INCORRECTO", "Already exists");
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Routes" icon="route" href="/api/routes">
+    View complete route definitions
+  </Card>
+  <Card title="Database Schema" icon="database" href="/database/schema">
+    Understand data structures
+  </Card>
+</CardGroup>

@@ -1,0 +1,280 @@
+---
+title: "Routes"
+description: "Complete route reference for Sistema de Ventas"
+---
+
+## Route Overview
+
+All routes are defined in `routes/web.php` and protected by the `verified` middleware, requiring authenticated and email-verified users.
+
+## Authentication Routes
+
+Laravel UI provides these authentication routes:
+
+```php routes/web.php:34
+Auth::routes(['verify' => true]);
+```
+
+| Method | URI | Description |
+|--------|-----|-------------|
+| GET | `/login` | Show login form |
+| POST | `/login` | Process login |
+| POST | `/logout` | Log out user |
+| GET | `/register` | Show registration form |
+| POST | `/register` | Process registration |
+| GET | `/password/reset` | Show password reset form |
+| POST | `/password/email` | Send password reset email |
+| GET | `/password/reset/{token}` | Show reset password form |
+| POST | `/password/reset` | Reset password |
+| GET | `/email/verify` | Email verification notice |
+| GET | `/email/verify/{id}/{hash}` | Verify email |
+| POST | `/email/resend` | Resend verification email |
+
+## Home Route
+
+```php routes/web.php:29-36
+Route::get('/', function () {
+    return redirect()->route("home");
+});
+
+Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])
+    ->name('home');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/` | - | - | Redirects to `/home` |
+| GET | `/home` | HomeController | index | Dashboard/home page |
+
+## Profile Routes
+
+Manage user profiles with photos and personal information:
+
+```php routes/web.php:41-44
+Route::get("mi-perfil", [PerfilController::class, "index"])
+    ->name("usuario.perfil")->middleware('verified');
+    
+Route::post("actualizar-foto-perfil", [PerfilController::class, "actualizarIMG"])
+    ->name("perfil.actualizarIMG")->middleware('verified');
+    
+Route::get("eliminar-foto-perfil", [PerfilController::class, "eliminarFotoPerfil"])
+    ->name("perfil.eliminarFotoPerfil")->middleware('verified');
+    
+Route::put("actualizar-datos-perfil", [PerfilController::class, "actualizarDatos"])
+    ->name("perfil.actualizarDatos")->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/mi-perfil` | PerfilController | index | View user profile |
+| POST | `/actualizar-foto-perfil` | PerfilController | actualizarIMG | Upload profile photo |
+| GET | `/eliminar-foto-perfil` | PerfilController | eliminarFotoPerfil | Delete profile photo |
+| PUT | `/actualizar-datos-perfil` | PerfilController | actualizarDatos | Update profile data |
+
+### Password Change Routes
+
+```php routes/web.php:62-63
+Route::get("cambiar-clave", [PerfilController::class, "cambiarClave"])
+    ->name("usuario.cambiarClave")->middleware('verified');
+    
+Route::post("cambiar-clave", [PerfilController::class, "actualizarClave"])
+    ->name("usuario.actualizarClave")->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/cambiar-clave` | PerfilController | cambiarClave | Show password change form |
+| POST | `/cambiar-clave` | PerfilController | actualizarClave | Process password change |
+
+## Company Routes
+
+Manage company information and branding:
+
+```php routes/web.php:48-51
+Route::get('empresa-index', [EmpresaController::class, 'index'])
+    ->name('empresa.index')->middleware('verified');
+    
+Route::post('empresa-update-{id}', [EmpresaController::class, 'update'])
+    ->name('empresa.update')->middleware('verified');
+    
+Route::post("actualizar-logo", [EmpresaController::class, "actualizarLogo"])
+    ->name("empresa.actualizarLogo")->middleware('verified');
+    
+Route::delete("eliminar-logo", [EmpresaController::class, "eliminarLogo"])
+    ->name("empresa.eliminarLogo")->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/empresa-index` | EmpresaController | index | View company information |
+| POST | `/empresa-update-{id}` | EmpresaController | update | Update company info |
+| POST | `/actualizar-logo` | EmpresaController | actualizarLogo | Upload company logo |
+| DELETE | `/eliminar-logo` | EmpresaController | eliminarLogo | Delete company logo |
+
+## Product Routes
+
+### Resource Routes
+
+```php routes/web.php:55
+Route::resource('productos', ProductoController::class)->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/productos` | ProductoController | index | List all products |
+| GET | `/productos/create` | ProductoController | create | Show product creation form |
+| POST | `/productos` | ProductoController | store | Create new product |
+| GET | `/productos/{id}` | ProductoController | show | View product details |
+| GET | `/productos/{id}/edit` | ProductoController | edit | Show product edit form |
+| PUT/PATCH | `/productos/{id}` | ProductoController | update | Update product |
+| DELETE | `/productos/{id}` | ProductoController | destroy | Delete product |
+
+### Custom Product Routes
+
+```php routes/web.php:56-58
+Route::post("buscar-producto", [ProductoController::class, "buscarProducto"])
+    ->name("producto.buscar")->middleware('verified');
+    
+Route::post("registrar-foto-producto", [ProductoController::class, "registrarFotoProducto"])
+    ->name("producto.registrarFotoProducto")->middleware('verified');
+    
+Route::delete("eliminar-productos", [ProductoController::class, "eliminarProducto"])
+    ->name("producto.eliminar")->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| POST | `/buscar-producto` | ProductoController | buscarProducto | Search products (AJAX) |
+| POST | `/registrar-foto-producto` | ProductoController | registrarFotoProducto | Upload product image |
+| DELETE | `/eliminar-productos` | ProductoController | eliminarProducto | Delete product photo |
+
+## Category Routes
+
+```php routes/web.php:67
+Route::resource('categoria', CategoriaController::class)->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/categoria` | CategoriaController | index | List all categories |
+| GET | `/categoria/create` | CategoriaController | create | Show category creation form |
+| POST | `/categoria` | CategoriaController | store | Create new category |
+| GET | `/categoria/{id}` | CategoriaController | show | View category details |
+| GET | `/categoria/{id}/edit` | CategoriaController | edit | Show category edit form |
+| PUT/PATCH | `/categoria/{id}` | CategoriaController | update | Update category |
+| DELETE | `/categoria/{id}` | CategoriaController | destroy | Delete category |
+
+## User Management Routes
+
+### Resource Routes
+
+```php routes/web.php:70
+Route::resource('usuario', UsuarioController::class)->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/usuario` | UsuarioController | index | List all users |
+| GET | `/usuario/create` | UsuarioController | create | Show user creation form |
+| POST | `/usuario` | UsuarioController | store | Create new user |
+| GET | `/usuario/{id}` | UsuarioController | show | View user details |
+| GET | `/usuario/{id}/edit` | UsuarioController | edit | Show user edit form |
+| PUT/PATCH | `/usuario/{id}` | UsuarioController | update | Update user |
+| DELETE | `/usuario/{id}` | UsuarioController | destroy | Delete user |
+
+### Custom User Routes
+
+```php routes/web.php:71-72
+Route::post("registrar-foto-usuario", [UsuarioController::class, "registrarFotoUsuario"])
+    ->name("usuario.registrarFotoUsuario")->middleware('verified');
+    
+Route::delete("eliminar-usuarios", [UsuarioController::class, "eliminarUsuario"])
+    ->name("usuario.eliminar")->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| POST | `/registrar-foto-usuario` | UsuarioController | registrarFotoUsuario | Upload user photo |
+| DELETE | `/eliminar-usuarios` | UsuarioController | eliminarUsuario | Delete user photo |
+
+## Inventory Entry Routes
+
+```php routes/web.php:76
+Route::resource('entradas', EntradaController::class)->middleware('verified');
+```
+
+| Method | URI | Controller | Action | Description |
+|--------|-----|------------|--------|-------------|
+| GET | `/entradas` | EntradaController | index | List all inventory entries |
+| GET | `/entradas/create` | EntradaController | create | Show entry creation form |
+| POST | `/entradas` | EntradaController | store | Create new entry |
+| GET | `/entradas/{id}` | EntradaController | show | View entry details |
+| GET | `/entradas/{id}/edit` | EntradaController | edit | Show entry edit form |
+| PUT/PATCH | `/entradas/{id}` | EntradaController | update | Update entry |
+| DELETE | `/entradas/{id}` | EntradaController | destroy | Delete entry |
+
+## Route Naming Conventions
+
+Sistema de Ventas uses consistent naming patterns:
+
+### Resource Routes
+- **Index**: `{resource}.index` (e.g., `productos.index`)
+- **Create**: `{resource}.create` (e.g., `productos.create`)
+- **Store**: `{resource}.store` (e.g., `productos.store`)
+- **Show**: `{resource}.show` (e.g., `productos.show`)
+- **Edit**: `{resource}.edit` (e.g., `productos.edit`)
+- **Update**: `{resource}.update` (e.g., `productos.update`)
+- **Destroy**: `{resource}.destroy` (e.g., `productos.destroy`)
+
+### Custom Routes
+- **Operation-based**: `{resource}.{action}` (e.g., `producto.buscar`)
+- **Profile**: `usuario.{action}` or `perfil.{action}`
+- **Company**: `empresa.{action}`
+
+## Middleware Usage
+
+All application routes use the `verified` middleware:
+
+```php
+->middleware('verified')
+```
+
+This ensures:
+1. User is authenticated (logged in)
+2. User's email address is verified
+3. Automatic redirect to verification page if not verified
+
+## Route Generation
+
+Generate URLs in your views using Laravel's route helpers:
+
+```php
+// Named route
+route('productos.index')
+
+// With parameters
+route('productos.show', ['id' => 1])
+
+// Current route
+route()->current()
+
+// Check current route
+request()->routeIs('productos.*')
+```
+
+## API Development
+
+<Note>
+  Sistema de Ventas primarily uses web routes with Blade views. For API development, routes can be added to `routes/api.php` and authenticated with Laravel Sanctum.
+</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Controllers" icon="code" href="/api/controllers">
+    Learn about controller implementation details
+  </Card>
+  <Card title="API Overview" icon="book" href="/api/overview">
+    Understand the overall API architecture
+  </Card>
+</CardGroup>

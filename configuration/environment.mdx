@@ -1,0 +1,648 @@
+---
+title: 'Environment Configuration'
+description: 'Complete guide to environment variables and application configuration'
+---
+
+## Overview
+
+Sistema de Ventas uses Laravel's environment-based configuration system. All sensitive and environment-specific settings are stored in the `.env` file, which should never be committed to version control.
+
+## Initial Setup
+
+<Steps>
+  <Step title="Copy the example file">
+    Create your environment configuration from the template:
+
+    ```bash
+    cp .env.example .env
+    ```
+  </Step>
+
+  <Step title="Generate application key">
+    Generate a secure encryption key:
+
+    ```bash
+    php artisan key:generate
+    ```
+
+    This will set the `APP_KEY` in your `.env` file.
+  </Step>
+
+  <Step title="Configure your environment">
+    Edit `.env` and update the values according to your environment.
+  </Step>
+</Steps>
+
+<Warning>
+  Never commit your `.env` file to version control. It contains sensitive credentials and configuration that should remain private.
+</Warning>
+
+## Application Settings
+
+### Core Application Variables
+
+```bash .env
+APP_NAME=Laravel
+APP_ENV=local
+APP_KEY=
+APP_DEBUG=true
+APP_URL=http://localhost
+```
+
+#### APP_NAME
+**Type:** String  
+**Default:** `Laravel`  
+**Required:** Yes
+
+The name of your application. Used in email notifications and other areas where the application needs to identify itself.
+
+```bash
+APP_NAME="Sistema de Ventas"
+```
+
+#### APP_ENV
+**Type:** String  
+**Default:** `local`  
+**Required:** Yes  
+**Options:** `local`, `development`, `staging`, `production`
+
+Determines the environment your application is running in. Affects error reporting, caching behavior, and other environment-specific features.
+
+<CodeGroup>
+```bash Development
+APP_ENV=local
+```
+
+```bash Production
+APP_ENV=production
+```
+</CodeGroup>
+
+#### APP_KEY
+**Type:** String (Base64 encoded)  
+**Required:** Yes
+
+The encryption key used by Laravel's encrypter service. Must be a 32-character random string.
+
+<Warning>
+  Never use the same APP_KEY across multiple environments. Each environment should have its own unique key.
+</Warning>
+
+Generate automatically:
+```bash
+php artisan key:generate
+```
+
+#### APP_DEBUG
+**Type:** Boolean  
+**Default:** `true`  
+**Required:** Yes
+
+Enables detailed error messages with stack traces. Should be `true` for development and `false` for production.
+
+<CodeGroup>
+```bash Development
+APP_DEBUG=true
+```
+
+```bash Production
+APP_DEBUG=false
+```
+</CodeGroup>
+
+<Warning>
+  Always set `APP_DEBUG=false` in production to prevent exposing sensitive application details in error messages.
+</Warning>
+
+#### APP_URL
+**Type:** URL  
+**Default:** `http://localhost`  
+**Required:** Yes
+
+The URL of your application. Used for generating URLs from the command line (emails, notifications, etc.).
+
+```bash
+APP_URL=https://ventas.example.com
+```
+
+## Database Configuration
+
+```bash .env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=sisreservacita
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+#### DB_CONNECTION
+**Type:** String  
+**Default:** `mysql`  
+**Required:** Yes  
+**Options:** `mysql`, `pgsql`, `sqlite`, `sqlsrv`
+
+The database driver to use. Sistema de Ventas is designed for MySQL.
+
+```bash
+DB_CONNECTION=mysql
+```
+
+#### DB_HOST
+**Type:** String/IP  
+**Default:** `127.0.0.1`  
+**Required:** Yes
+
+The hostname or IP address of your database server.
+
+<CodeGroup>
+```bash Local
+DB_HOST=127.0.0.1
+```
+
+```bash Remote
+DB_HOST=mysql.example.com
+```
+
+```bash Docker
+DB_HOST=mysql
+```
+</CodeGroup>
+
+#### DB_PORT
+**Type:** Integer  
+**Default:** `3306`  
+**Required:** Yes
+
+The port your database server is listening on.
+
+```bash
+DB_PORT=3306
+```
+
+#### DB_DATABASE
+**Type:** String  
+**Default:** `sisreservacita`  
+**Required:** Yes
+
+The name of your database. The SQL schema uses `tutorial_sistema_ventas`.
+
+```bash
+DB_DATABASE=tutorial_sistema_ventas
+```
+
+<Note>
+  The `.env.example` file shows `sisreservacita`, but you should use `tutorial_sistema_ventas` to match the provided SQL schema.
+</Note>
+
+#### DB_USERNAME
+**Type:** String  
+**Default:** `root`  
+**Required:** Yes
+
+The database user with access to your database.
+
+```bash
+DB_USERNAME=root
+```
+
+#### DB_PASSWORD
+**Type:** String  
+**Default:** (empty)  
+**Required:** No (for local development)
+
+The password for your database user.
+
+<CodeGroup>
+```bash Local (XAMPP/WAMP)
+DB_PASSWORD=
+```
+
+```bash Production
+DB_PASSWORD=your-secure-password-here
+```
+</CodeGroup>
+
+## Logging Configuration
+
+```bash .env
+LOG_CHANNEL=stack
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+```
+
+#### LOG_CHANNEL
+**Type:** String  
+**Default:** `stack`  
+**Required:** No  
+**Options:** `stack`, `single`, `daily`, `slack`, `syslog`, `errorlog`
+
+Determines how log messages are written.
+
+<CodeGroup>
+```bash Development
+LOG_CHANNEL=stack
+```
+
+```bash Production Daily Logs
+LOG_CHANNEL=daily
+```
+</CodeGroup>
+
+#### LOG_LEVEL
+**Type:** String  
+**Default:** `debug`  
+**Options:** `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency`
+
+The minimum level of log messages to record.
+
+<CodeGroup>
+```bash Development
+LOG_LEVEL=debug
+```
+
+```bash Production
+LOG_LEVEL=error
+```
+</CodeGroup>
+
+## Cache & Session Configuration
+
+```bash .env
+CACHE_DRIVER=file
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+QUEUE_CONNECTION=sync
+```
+
+#### CACHE_DRIVER
+**Type:** String  
+**Default:** `file`  
+**Required:** No  
+**Options:** `file`, `database`, `redis`, `memcached`, `array`
+
+Determines where cached data is stored.
+
+```bash
+CACHE_DRIVER=file
+```
+
+#### SESSION_DRIVER
+**Type:** String  
+**Default:** `file`  
+**Required:** No  
+**Options:** `file`, `cookie`, `database`, `redis`, `memcached`, `array`
+
+Determines how session data is stored.
+
+```bash
+SESSION_DRIVER=file
+```
+
+#### SESSION_LIFETIME
+**Type:** Integer (minutes)  
+**Default:** `120`  
+**Required:** No
+
+The number of minutes before a user session expires.
+
+```bash
+SESSION_LIFETIME=120  # 2 hours
+```
+
+#### QUEUE_CONNECTION
+**Type:** String  
+**Default:** `sync`  
+**Required:** No  
+**Options:** `sync`, `database`, `redis`, `sqs`, `beanstalkd`
+
+Determines how queued jobs are processed.
+
+<CodeGroup>
+```bash Development (Synchronous)
+QUEUE_CONNECTION=sync
+```
+
+```bash Production (Background)
+QUEUE_CONNECTION=database
+```
+</CodeGroup>
+
+## Mail Configuration
+
+```bash .env
+MAIL_MAILER=smtp
+MAIL_HOST=mailhog
+MAIL_PORT=1025
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_ENCRYPTION=null
+MAIL_FROM_ADDRESS=null
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+#### MAIL_MAILER
+**Type:** String  
+**Default:** `smtp`  
+**Required:** Yes  
+**Options:** `smtp`, `sendmail`, `mailgun`, `ses`, `postmark`, `log`
+
+The mail driver to use for sending emails.
+
+<CodeGroup>
+```bash Development (Mailhog)
+MAIL_MAILER=smtp
+MAIL_HOST=mailhog
+MAIL_PORT=1025
+```
+
+```bash Production (Gmail)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_ENCRYPTION=tls
+```
+
+```bash Production (SendGrid)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.sendgrid.net
+MAIL_PORT=587
+MAIL_USERNAME=apikey
+MAIL_PASSWORD=your-sendgrid-api-key
+MAIL_ENCRYPTION=tls
+```
+</CodeGroup>
+
+#### MAIL_FROM_ADDRESS
+**Type:** Email  
+**Required:** Yes
+
+The default email address used as the "from" address.
+
+```bash
+MAIL_FROM_ADDRESS=noreply@ventas.example.com
+```
+
+#### MAIL_FROM_NAME
+**Type:** String  
+**Required:** No
+
+The default name used as the "from" name.
+
+```bash
+MAIL_FROM_NAME="Sistema de Ventas"
+```
+
+## Redis Configuration
+
+```bash .env
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+
+<Note>
+  Redis is optional and not required for basic functionality. It's useful for caching and queues in production.
+</Note>
+
+#### REDIS_HOST
+**Type:** String/IP  
+**Default:** `127.0.0.1`
+
+The Redis server hostname.
+
+#### REDIS_PASSWORD
+**Type:** String  
+**Default:** `null`
+
+The Redis server password (if required).
+
+#### REDIS_PORT
+**Type:** Integer  
+**Default:** `6379`
+
+The Redis server port.
+
+## Broadcasting Configuration
+
+```bash .env
+BROADCAST_DRIVER=log
+```
+
+#### BROADCAST_DRIVER
+**Type:** String  
+**Default:** `log`  
+**Options:** `pusher`, `redis`, `log`, `null`
+
+Determines how real-time events are broadcast.
+
+```bash
+BROADCAST_DRIVER=log
+```
+
+## Filesystem Configuration
+
+```bash .env
+FILESYSTEM_DRIVER=local
+```
+
+#### FILESYSTEM_DRIVER
+**Type:** String  
+**Default:** `local`  
+**Options:** `local`, `public`, `s3`, `ftp`
+
+Determines where uploaded files are stored.
+
+```bash
+FILESYSTEM_DRIVER=local
+```
+
+## AWS Configuration (Optional)
+
+```bash .env
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=
+AWS_USE_PATH_STYLE_ENDPOINT=false
+```
+
+<Note>
+  AWS configuration is only needed if you plan to use S3 for file storage or SES for email.
+</Note>
+
+## Pusher Configuration (Optional)
+
+```bash .env
+PUSHER_APP_ID=
+PUSHER_APP_KEY=
+PUSHER_APP_SECRET=
+PUSHER_APP_CLUSTER=mt1
+
+MIX_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+MIX_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
+```
+
+<Note>
+  Pusher configuration is only needed for real-time broadcasting features.
+</Note>
+
+## Additional Settings
+
+### MEMCACHED_HOST
+**Type:** String/IP  
+**Default:** `127.0.0.1`
+
+```bash
+MEMCACHED_HOST=127.0.0.1
+```
+
+## Environment-Specific Examples
+
+### Development Environment
+
+```bash .env
+APP_NAME="Sistema de Ventas"
+APP_ENV=local
+APP_KEY=base64:generated-key-here
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+LOG_CHANNEL=stack
+LOG_LEVEL=debug
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=tutorial_sistema_ventas
+DB_USERNAME=root
+DB_PASSWORD=
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=file
+FILESYSTEM_DRIVER=local
+QUEUE_CONNECTION=sync
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+
+MAIL_MAILER=log
+MAIL_HOST=mailhog
+MAIL_PORT=1025
+```
+
+### Production Environment
+
+```bash .env
+APP_NAME="Sistema de Ventas"
+APP_ENV=production
+APP_KEY=base64:your-production-key-here
+APP_DEBUG=false
+APP_URL=https://ventas.example.com
+
+LOG_CHANNEL=daily
+LOG_LEVEL=error
+
+DB_CONNECTION=mysql
+DB_HOST=your-db-host.com
+DB_PORT=3306
+DB_DATABASE=tutorial_sistema_ventas
+DB_USERNAME=db_user
+DB_PASSWORD=secure-password-here
+
+BROADCAST_DRIVER=log
+CACHE_DRIVER=redis
+FILESYSTEM_DRIVER=local
+QUEUE_CONNECTION=database
+SESSION_DRIVER=redis
+SESSION_LIFETIME=120
+
+REDIS_HOST=redis
+REDIS_PASSWORD=redis-password
+REDIS_PORT=6379
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@example.com
+MAIL_PASSWORD=your-app-password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@example.com
+MAIL_FROM_NAME="Sistema de Ventas"
+```
+
+## Security Best Practices
+
+<Warning>
+  Follow these security guidelines to protect your application:
+</Warning>
+
+1. **Never commit `.env`**: Add it to `.gitignore`
+2. **Unique keys per environment**: Each environment should have its own `APP_KEY`
+3. **Strong passwords**: Use strong database and Redis passwords
+4. **Disable debug in production**: Set `APP_DEBUG=false`
+5. **Use HTTPS**: Set `APP_URL` to use `https://` in production
+6. **Secure mail credentials**: Use app-specific passwords for email services
+7. **Environment variables**: Store all secrets in `.env`, never hardcode them
+
+## Configuration Caching
+
+In production, cache your configuration for better performance:
+
+```bash
+php artisan config:cache
+```
+
+Clear the cache when you make changes:
+
+```bash
+php artisan config:clear
+```
+
+<Note>
+  When configuration is cached, the `.env` file is not loaded. Make sure to clear the cache after updating environment variables.
+</Note>
+
+## Troubleshooting
+
+### Configuration Not Loading
+
+If changes to `.env` aren't taking effect:
+
+1. Clear the configuration cache:
+   ```bash
+   php artisan config:clear
+   ```
+
+2. Restart your development server
+
+### Invalid APP_KEY
+
+```
+No application encryption key has been specified.
+```
+
+**Solution:**
+```bash
+php artisan key:generate
+```
+
+### Database Connection Issues
+
+Verify your database credentials:
+
+```bash
+php artisan db:show
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/configuration/database">
+    Configure your database connection
+  </Card>
+  <Card title="Authentication" icon="lock" href="/configuration/authentication">
+    Set up user authentication
+  </Card>
+</CardGroup>

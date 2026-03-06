@@ -1,0 +1,449 @@
+---
+title: Company Profile
+description: Configure your company information, logo, and business details that appear throughout the system
+---
+
+## Overview
+
+The Company Profile module allows you to maintain your business information, including company name, contact details, tax identification, and company logo. This information is used throughout the system for invoices, reports, and branding.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Business Information" icon="building">
+    Store company name, address, phone, and email
+  </Card>
+  <Card title="Tax Configuration" icon="file-invoice">
+    Manage tax ID (RUC) for legal compliance
+  </Card>
+  <Card title="Logo Management" icon="image">
+    Upload and manage your company logo
+  </Card>
+  <Card title="System Branding" icon="palette">
+    Logo appears on invoices and printed documents
+  </Card>
+</CardGroup>
+
+## Company Information
+
+### Viewing Company Details
+
+The company profile displays all business information:
+
+```php
+// EmpresaController.php:11-17
+public function index()
+{
+    try {
+        $sql = DB::select('select * from empresa');
+    } catch (\Throwable $th) {
+        //throw $th;
+    }
+    return view('vistas/empresa/empresa', compact("sql"));
+}
+```
+
+The profile includes:
+- Company name
+- Phone number
+- Business address/location
+- Tax ID (RUC)
+- Email address
+- Company logo
+
+<Note>
+  The system typically stores a single company record. This is the primary business entity for all transactions and documentation.
+</Note>
+
+## Updating Company Information
+
+### Editing Business Details
+
+Administrators can update company information at any time:
+
+```php
+// EmpresaController.php:19-40
+public function update(Request $request, $id)
+{
+    try {
+        $sql = DB::update(
+            'update empresa set nombre=?, telefono=?, ubicacion=?, ruc=?, correo=? where id_empresa=?', 
+            [
+                $request->nombre,
+                $request->telefono,
+                $request->ubicacion,
+                $request->ruc,
+                $request->correo,
+                $id
+            ]
+        );
+        if ($sql == 0) {
+            $sql = 1;
+        }
+    } catch (\Throwable $th) {
+        $sql = 0;
+    }
+    if ($sql == 1) {
+        return back()->with('CORRECTO', 'Datos modificados correctamente');
+    } else {
+        return back()->with('INCORRECTO', 'Error al modificar');
+    }
+}
+```
+
+### Updatable Fields
+
+<Accordion title="Company Name (nombre)">
+  The legal or trading name of your business. This appears on:
+  - Invoices and receipts
+  - System headers and footers
+  - Reports and documents
+  - Customer-facing communications
+
+  **Example:** "Comercial Santa Rosa S.A.C."
+</Accordion>
+
+<Accordion title="Phone Number (telefono)">
+  Primary business contact number. Used for:
+  - Customer inquiries
+  - Supplier communications
+  - Invoice contact information
+  - Emergency contact details
+
+  **Example:** "+51 123 456 789"
+</Accordion>
+
+<Accordion title="Location (ubicacion)">
+  Physical business address. Important for:
+  - Legal documentation
+  - Tax filings
+  - Shipping and deliveries
+  - Customer visits
+
+  **Example:** "Av. Principal 123, Lima, Perú"
+</Accordion>
+
+<Accordion title="Tax ID / RUC (ruc)">
+  Tax identification number (RUC in Peru). Required for:
+  - Legal invoicing
+  - Tax compliance
+  - Government reporting
+  - Business registration
+
+  **Example:** "20123456789"
+</Accordion>
+
+<Accordion title="Email (correo)">
+  Business email address. Used for:
+  - Electronic invoicing
+  - Official communications
+  - System notifications
+  - Customer correspondence
+
+  **Example:** "ventas@empresa.com"
+</Accordion>
+
+## Logo Management
+
+### Uploading or Updating Logo
+
+Your company logo represents your brand throughout the system:
+
+```php
+// EmpresaController.php:43-81
+public function actualizarLogo(Request $request)
+{
+    $request->validate([
+        "foto" => "required|image|mimes:jpeg,png,jpg"
+    ]);
+
+    $file = $request->file("foto");
+    $nombreArchivo = "logo" . "." . strtolower($file->getClientOriginalExtension());
+    $ruta = storage_path("app/public/empresa/" . $nombreArchivo);
+
+    // Delete old logo if exists
+    $verificarLogo = DB::select('select foto from empresa');
+    $verificarLogo = $verificarLogo[0]->foto;
+    $nombreLogoAnterior = $verificarLogo;
+
+    if ($nombreLogoAnterior != null) {
+        $rutaAnterior = storage_path("app/public/empresa/" . $nombreLogoAnterior);
+        try {
+            unlink($rutaAnterior);
+        } catch (\Throwable $th) {}
+    }
+
+    $res = move_uploaded_file($file, $ruta);
+
+    try {
+        $actualizarCampo = DB::update("update empresa set foto=?", [$nombreArchivo]);
+        if ($actualizarCampo == 0) {
+            $actualizarCampo = 1;
+        }
+    } catch (\Throwable $th) {
+        $actualizarCampo = 0;
+    }
+
+    if ($res && $actualizarCampo) {
+        return back()->with('CORRECTO', 'Logo actualizado correctamente');
+    } else {
+        return back()->with('INCORRECTO', 'Error al actualizar el logo');
+    }
+}
+```
+
+### Logo Specifications
+
+- **Formats:** JPEG, PNG, JPG
+- **Filename:** `logo.{extension}` (standardized)
+- **Storage:** `storage/app/public/empresa/`
+- **Behavior:** Automatically replaces previous logo
+
+<Note>
+  When uploading a new logo, the system automatically deletes the old logo file to save storage space and prevent confusion.
+</Note>
+
+### Logo Usage
+
+Your company logo appears in:
+
+- **Invoices** - Printed and electronic receipts
+- **Reports** - Header of printed reports
+- **System Interface** - Main navigation or header
+- **Documents** - Purchase orders, delivery notes
+- **Customer-Facing Materials** - Quotes, statements
+
+### Removing Logo
+
+If you need to remove the logo temporarily:
+
+```php
+// EmpresaController.php:83-102
+public function eliminarLogo()
+{
+    $consulta = DB::select('select foto from empresa');
+    $nombreLogo = $consulta[0]->foto;
+    $ruta = public_path("storage/empresa/$nombreLogo");
+
+    try {
+        $eliminar = unlink($ruta);
+        $actualizarCampo = DB::update(" update empresa set foto='' ");
+    } catch (\Throwable $th) {
+        $eliminar = false;
+        $actualizarCampo = false;
+    }
+
+    if ($eliminar && $actualizarCampo) {
+        return back()->with("CORRECTO", "Logo eliminado correctamente");
+    } else {
+        return back()->with("INCORRECTO", "Error al eliminar el logo");
+    }
+}
+```
+
+<Warning>
+  Deleting the logo will remove it from all documents and the system interface. You can upload a new logo at any time.
+</Warning>
+
+## Configuration Routes
+
+Company profile management is accessible through these routes:
+
+```php
+// web.php:47-51
+Route::get('empresa-index', [EmpresaController::class, 'index'])
+    ->name('empresa.index')->middleware('verified');
+Route::post('empresa-update-{id}', [EmpresaController::class, 'update'])
+    ->name('empresa.update')->middleware('verified');
+Route::post("actualizar-logo", [EmpresaController::class, "actualizarLogo"])
+    ->name("empresa.actualizarLogo")->middleware('verified');
+Route::delete("eliminar-logo",[EmpresaController::class, "eliminarLogo"])
+    ->name("empresa.eliminarLogo")->middleware('verified');
+```
+
+<Note>
+  All company profile routes require authentication (`verified` middleware) to prevent unauthorized changes.
+</Note>
+
+## Database Structure
+
+Company information is stored in a single-row table:
+
+```sql
+-- empresa table
+id_empresa INT PRIMARY KEY
+nombre VARCHAR       -- Company name
+telefono VARCHAR     -- Phone number
+ubicacion VARCHAR    -- Business address
+ruc VARCHAR          -- Tax ID number
+correo VARCHAR       -- Email address
+foto VARCHAR         -- Logo filename
+```
+
+## Best Practices
+
+<Accordion title="Logo Design Guidelines">
+  **For optimal display across the system:**
+
+  - Use high-resolution images (at least 300 DPI for print)
+  - Prefer square or horizontal rectangular logos
+  - Recommended size: 500x500 pixels or larger
+  - Use transparent backgrounds (PNG) for flexibility
+  - Keep file size reasonable (under 1MB)
+  - Test logo on both light and dark backgrounds
+  - Ensure logo is legible when scaled down
+</Accordion>
+
+<Accordion title="Business Information Accuracy">
+  **Keep information current and accurate:**
+
+  - Verify tax ID (RUC) is correct and active
+  - Update address if business relocates
+  - Ensure phone number is monitored during business hours
+  - Use official company email address
+  - Review information quarterly
+  - Update immediately after legal name changes
+  - Maintain consistency with government registrations
+</Accordion>
+
+<Accordion title="Legal Compliance">
+  **Ensure compliance with local regulations:**
+
+  - Tax ID must match official registration
+  - Company name should match legal documents
+  - Address must be accurate for tax purposes
+  - Email and phone must be reachable for audits
+  - Keep backup of all company documentation
+  - Update information when regulations change
+</Accordion>
+
+<Accordion title="Access Control">
+  **Protect company profile from unauthorized changes:**
+
+  - Restrict access to administrators only
+  - Log all changes to company information
+  - Require approval for critical field updates
+  - Notify stakeholders of information changes
+  - Maintain audit trail of modifications
+  - Regular review of access permissions
+</Accordion>
+
+## Common Scenarios
+
+### Initial System Setup
+
+1. Access company profile section
+2. Enter complete business information
+3. Verify tax ID and legal details
+4. Upload company logo
+5. Review information for accuracy
+6. Save configuration
+7. Test logo appearance on invoice
+
+### Company Rebranding
+
+1. Prepare new logo in correct format
+2. Access logo management
+3. Upload new logo file
+4. System replaces old logo automatically
+5. Verify logo appears correctly throughout system
+6. Update company name if changed
+7. Generate sample invoice to verify branding
+
+### Business Relocation
+
+1. Update business address (ubicacion)
+2. Update phone number if changed
+3. Verify tax registration at new location
+4. Update any location-specific licenses
+5. Notify customers of address change
+6. Update printed materials and website
+7. Verify address on generated documents
+
+### Tax ID Update
+
+1. Obtain new tax ID from authorities
+2. Update RUC field in company profile
+3. Verify change is reflected in invoices
+4. Update tax registration documents
+5. Notify accounting department
+6. Archive old tax ID documentation
+7. Test invoice generation with new ID
+
+## Integration with Other Modules
+
+### Invoicing & Sales
+
+Company information appears on all sales documents:
+- Customer invoices include company name, address, RUC
+- Logo appears on printed receipts
+- Contact information for customer inquiries
+
+### Reporting
+
+Company branding on reports:
+- Report headers display company name and logo
+- Footer includes contact information
+- Official documents for external distribution
+
+### User Interface
+
+System-wide branding:
+- Logo in navigation header
+- Company name in page titles
+- Consistent brand experience
+
+## Troubleshooting
+
+<Accordion title="Logo Not Displaying">
+  **If your logo doesn't appear:**
+
+  1. Verify file format (JPEG, PNG, JPG only)
+  2. Check file permissions in storage directory
+  3. Ensure symbolic link exists: `php artisan storage:link`
+  4. Clear browser cache
+  5. Verify logo path in database matches actual file
+  6. Check file size is within limits
+  7. Re-upload logo if necessary
+</Accordion>
+
+<Accordion title="Cannot Update Information">
+  **If updates fail:**
+
+  1. Verify you have administrator permissions
+  2. Check all required fields are filled
+  3. Ensure no special characters in RUC field
+  4. Validate email format
+  5. Check database connection
+  6. Review error logs for details
+  7. Contact system administrator
+</Accordion>
+
+<Accordion title="Logo Appears Distorted">
+  **If logo looks incorrect:**
+
+  1. Use original high-resolution file
+  2. Check aspect ratio of image
+  3. Upload PNG with transparent background
+  4. Ensure minimum recommended dimensions
+  5. Avoid extreme horizontal or vertical logos
+  6. Test with different image file
+  7. Consider professional logo design
+</Accordion>
+
+## Security Considerations
+
+- Only administrators should access company profile
+- Log all changes to company information
+- Require confirmation for critical updates
+- Protect tax ID from unauthorized viewing
+- Secure storage directory with proper permissions
+- Regular backups of company data
+- Monitor for unauthorized access attempts
+
+## Related Features
+
+- [Users](/features/users) - Manage user accounts and permissions
+- Invoicing - Generate customer invoices with company branding (coming soon)
+- Reports - Create branded reports and documents (coming soon)
+- Settings - Configure system-wide preferences (coming soon)

@@ -1,0 +1,321 @@
+---
+title: "Installation"
+description: "Step-by-step guide to installing Sistema de Ventas on your server"
+---
+
+## Prerequisites
+
+Before installing Sistema de Ventas, ensure your system meets the following requirements:
+
+<CardGroup cols={2}>
+  <Card title="Server Requirements" icon="server">
+    - PHP 7.3+ or 8.2+
+    - MySQL 5.7+ or 8.0+
+    - Apache or Nginx web server
+    - Composer (latest version)
+  </Card>
+  <Card title="Development Tools" icon="code">
+    - Node.js 14+ and NPM
+    - Git
+    - Text editor or IDE
+    - Terminal/Command line access
+  </Card>
+</CardGroup>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    Clone the Sistema de Ventas repository from GitHub:
+
+    ```bash
+    git clone https://github.com/isai-ismael/tutorial-sistema-ventas.git
+    cd tutorial-sistema-ventas
+    ```
+
+    This downloads the complete application source code to your local machine.
+  </Step>
+
+  <Step title="Install PHP Dependencies">
+    Use Composer to install all PHP dependencies defined in `composer.json`:
+
+    ```bash
+    composer install
+    ```
+
+    This installs:
+    - Laravel Framework 11.0
+    - Laravel Sanctum 4.0 (API authentication)
+    - Laravel UI 4.0 (authentication scaffolding)
+    - Laravel Tinker 2.5 (REPL tool)
+    - Guzzle HTTP 7.0 (HTTP client)
+
+    <Note>
+      If you encounter memory limit errors, try: `php -d memory_limit=-1 /path/to/composer install`
+    </Note>
+  </Step>
+
+  <Step title="Install Frontend Dependencies">
+    Install JavaScript dependencies using NPM:
+
+    ```bash
+    npm install
+    ```
+
+    This installs:
+    - Bootstrap 4.6
+    - jQuery 3.6
+    - Laravel Mix 6.0
+    - Sass and related build tools
+  </Step>
+
+  <Step title="Configure Environment">
+    Copy the example environment file and configure it:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    Edit `.env` and update the following essential settings:
+
+    ```bash .env
+    APP_NAME="Sistema de Ventas"
+    APP_ENV=local
+    APP_DEBUG=true
+    APP_URL=http://localhost:8000
+
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=tutorial_sistema_ventas
+    DB_USERNAME=root
+    DB_PASSWORD=your_password_here
+    ```
+
+    <Warning>
+      Make sure to set `DB_DATABASE=tutorial_sistema_ventas` to match the database name from the SQL file.
+    </Warning>
+  </Step>
+
+  <Step title="Generate Application Key">
+    Generate a unique application encryption key:
+
+    ```bash
+    php artisan key:generate
+    ```
+
+    This creates a secure `APP_KEY` in your `.env` file, which Laravel uses to encrypt sessions and other sensitive data.
+  </Step>
+
+  <Step title="Create Database">
+    Create a MySQL database for the application:
+
+    ```sql
+    CREATE DATABASE tutorial_sistema_ventas CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+    ```
+
+    Or import the provided SQL file directly:
+
+    ```bash
+    mysql -u root -p < BD/tutorial_sistema_ventas.sql
+    ```
+
+    The SQL file (`BD/tutorial_sistema_ventas.sql`) includes the complete schema with these tables:
+    - `categoria` - Product categories
+    - `producto` - Products with pricing and stock
+    - `cliente` - Customer information
+    - `proveedor` - Supplier information
+    - `entrada` - Inventory entries
+    - `venta` and `venta_detalle` - Sales transactions
+    - `usuario` and `tipo_usuario` - User management
+    - `empresa` - Company information
+  </Step>
+
+  <Step title="Run Migrations (Alternative)">
+    If you prefer to use Laravel migrations instead of importing the SQL file:
+
+    ```bash
+    php artisan migrate
+    ```
+
+    <Note>
+      The provided SQL file includes sample data. Using migrations will create empty tables.
+    </Note>
+  </Step>
+
+  <Step title="Create Storage Link">
+    Create a symbolic link from `public/storage` to `storage/app/public`:
+
+    ```bash
+    php artisan storage:link
+    ```
+
+    This allows public access to uploaded files (product photos, user avatars, company logos).
+  </Step>
+
+  <Step title="Compile Frontend Assets">
+    Build the frontend assets (CSS and JavaScript):
+
+    <CodeGroup>
+    ```bash Development
+    npm run dev
+    ```
+
+    ```bash Production
+    npm run prod
+    ```
+
+    ```bash Watch Mode
+    npm run watch
+    ```
+    </CodeGroup>
+
+    Use `watch` mode during development to automatically recompile when files change.
+  </Step>
+
+  <Step title="Start Development Server">
+    Launch the Laravel development server:
+
+    ```bash
+    php artisan serve
+    ```
+
+    The application will be available at `http://localhost:8000`
+
+    <Tip>
+      To specify a different port: `php artisan serve --port=8080`
+    </Tip>
+  </Step>
+</Steps>
+
+## Post-Installation
+
+### Create Admin User
+
+If using a fresh database, create an admin user account:
+
+```bash
+php artisan tinker
+```
+
+Then run:
+
+```php
+DB::table('tipo_usuario')->insert([
+    'tipo' => 'Administrador'
+]);
+
+DB::table('usuario')->insert([
+    'id_tipo' => 1,
+    'nombre' => 'Admin',
+    'apellido' => 'User',
+    'usuario' => 'admin',
+    'clave' => bcrypt('admin123'),
+    'correo' => 'admin@example.com',
+    'estado' => '1'
+]);
+```
+
+### Verify Installation
+
+Check that everything is working:
+
+1. **Access the application**: Navigate to `http://localhost:8000`
+2. **Login**: Use the admin credentials
+3. **Check database**: Verify tables were created
+4. **Test file uploads**: Try uploading a product image
+
+## Docker Installation (Alternative)
+
+<Accordion title="Install with Laravel Sail">
+  Laravel Sail provides a Docker-based development environment:
+
+  ```bash
+  # Install Sail
+  composer require laravel/sail --dev
+
+  # Publish Sail configuration
+  php artisan sail:install
+
+  # Start Docker containers
+  ./vendor/bin/sail up
+
+  # Run migrations
+  ./vendor/bin/sail artisan migrate
+
+  # Install NPM dependencies
+  ./vendor/bin/sail npm install
+
+  # Build assets
+  ./vendor/bin/sail npm run dev
+  ```
+
+  The application will be available at `http://localhost`
+</Accordion>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Permission Errors">
+    If you encounter permission errors, ensure proper permissions on storage and cache directories:
+
+    ```bash
+    chmod -R 775 storage bootstrap/cache
+    chown -R www-data:www-data storage bootstrap/cache
+    ```
+  </Accordion>
+
+  <Accordion title="Database Connection Failed">
+    - Verify MySQL is running: `systemctl status mysql`
+    - Check credentials in `.env` match your MySQL setup
+    - Test connection: `mysql -u root -p -h 127.0.0.1`
+    - Ensure database exists: `SHOW DATABASES;`
+  </Accordion>
+
+  <Accordion title="Composer Install Fails">
+    - Update Composer: `composer self-update`
+    - Clear Composer cache: `composer clear-cache`
+    - Check PHP version: `php -v` (must be 7.3+)
+    - Install missing PHP extensions: `php-mbstring`, `php-xml`, `php-mysql`
+  </Accordion>
+
+  <Accordion title="NPM Install Errors">
+    - Clear NPM cache: `npm cache clean --force`
+    - Delete node_modules: `rm -rf node_modules package-lock.json`
+    - Reinstall: `npm install`
+    - Update Node.js if using an old version
+  </Accordion>
+</AccordionGroup>
+
+## Production Deployment
+
+<Warning>
+  Never deploy to production with `APP_DEBUG=true` or the default `APP_KEY`.
+</Warning>
+
+For production deployment:
+
+1. Set `APP_ENV=production` in `.env`
+2. Set `APP_DEBUG=false`
+3. Configure a production database
+4. Run `php artisan config:cache`
+5. Run `php artisan route:cache`
+6. Run `php artisan view:cache`
+7. Build assets: `npm run prod`
+8. Configure your web server (Apache/Nginx)
+9. Set proper file permissions
+10. Enable HTTPS with SSL certificate
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Complete the quick start guide
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/environment">
+    Configure environment settings
+  </Card>
+  <Card title="Features" icon="sparkles" href="/features/products">
+    Explore core features
+  </Card>
+</CardGroup>

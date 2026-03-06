@@ -1,0 +1,598 @@
+---
+title: "Models"
+description: "Eloquent models and ORM usage in Sistema de Ventas"
+---
+
+## Model Overview
+
+Sistema de Ventas uses Laravel's Eloquent ORM for database interaction. Models are located in `app/Models/` and extend Laravel's base model classes.
+
+## Core Models
+
+### Usuario Model
+
+`app/Models/Usuario.php`
+
+Custom user model for authentication that maps to the `usuario` table.
+
+```php Usuario.php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class Usuario extends Authenticatable
+{
+    use HasFactory;
+    
+    protected $table = "usuario";
+    protected $primaryKey = "id_usuario";
+    public $timestamps = false;
+    
+    protected $fillable = [
+        "tipo_usuario", "nombre", "apellido", "usuario", 
+        "password", "correo", "estado"
+    ];
+}
+```
+
+**Key Features**:
+
+<AccordionGroup>
+  <Accordion title="Table Configuration">
+    - **Table**: `usuario` (overrides default `users`)
+    - **Primary Key**: `id_usuario` (overrides default `id`)
+    - **Timestamps**: Disabled (`created_at`/`updated_at` not used)
+  </Accordion>
+
+  <Accordion title="Mass Assignment Protection">
+    The `$fillable` array defines which attributes can be mass-assigned:
+
+    ```php
+    Usuario::create([
+        'tipo_usuario' => 1,
+        'nombre' => 'John',
+        'apellido' => 'Doe',
+        'usuario' => 'johndoe',
+        'password' => bcrypt('password'),
+        'correo' => 'john@example.com',
+        'estado' => 1
+    ]);
+    ```
+
+    Attributes not in `$fillable` cannot be mass-assigned (security feature).
+  </Accordion>
+
+  <Accordion title="Authentication Features">
+    Extends `Authenticatable`, providing:
+
+    - Password hashing (bcrypt)
+    - Authentication guard integration
+    - Remember token functionality
+    - Password reset capabilities
+
+    ```php
+    // Check authentication
+    if (Auth::check()) {
+        $user = Auth::user(); // Returns Usuario instance
+    }
+
+    // Login
+    Auth::attempt([
+        'usuario' => 'johndoe',
+        'password' => 'password'
+    ]);
+    ```
+  </Accordion>
+
+  <Accordion title="HasFactory Trait">
+    Enables model factories for testing:
+
+    ```php
+    // Generate fake users for testing
+    Usuario::factory()->count(10)->create();
+    ```
+  </Accordion>
+</AccordionGroup>
+
+### Potential Model Relationships
+
+While not explicitly defined in the source, the Usuario model could have these relationships:
+
+```php
+// In Usuario.php
+public function tipoUsuario()
+{
+    return $this->belongsTo(TipoUsuario::class, 'tipo_usuario', 'id_tipo');
+}
+
+public function ventas()
+{
+    return $this->hasMany(Venta::class, 'id_usuario', 'id_usuario');
+}
+```
+
+### User Model (Standard Laravel)
+
+`app/Models/User.php`
+
+Standard Laravel user model (likely unused in favor of Usuario).
+
+```php User.php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+}
+```
+
+**Key Features**:
+
+- **HasApiTokens**: Provides Sanctum API token authentication
+- **Notifiable**: Enables sending notifications (email, SMS, etc.)
+- **$hidden**: Excludes password and remember_token from JSON serialization
+- **$casts**: Automatically casts `email_verified_at` to Carbon datetime
+
+## Database Query Approaches
+
+Sistema de Ventas uses multiple database interaction patterns:
+
+### 1. Raw SQL Queries
+
+Direct SQL execution using DB facade:
+
+```php
+$productos = DB::select(
+    "SELECT * FROM producto WHERE id_categoria = ?", 
+    [$categoriaId]
+);
+
+$affected = DB::update(
+    "UPDATE producto SET precio = ? WHERE id_producto = ?",
+    [$precio, $id]
+);
+
+$deleted = DB::delete(
+    "DELETE FROM categoria WHERE id_categoria = ?",
+    [$id]
+);
+```
+
+**Pros**: Direct control, complex joins  
+**Cons**: No model features, SQL injection risk if not parameterized
+
+### 2. Query Builder
+
+Fluent interface for building queries:
+
+```php
+// Select
+$productos = DB::table('producto')
+    ->join('categoria', 'producto.id_categoria', '=', 'categoria.id_categoria')
+    ->select('producto.*', 'categoria.nombre as categoria')
+    ->where('producto.estado', 1)
+    ->paginate(10);
+
+// Insert
+$id = DB::table('producto')->insertGetId([
+    'id_categoria' => $categoriaId,
+    'codigo' => $codigo,
+    'nombre' => $nombre,
+    'precio' => $precio,
+    'stock' => $stock,
+    'estado' => 1
+]);
+
+// Update
+DB::table('producto')
+    ->where('id_producto', $id)
+    ->update(['stock' => $newStock]);
+```
+
+**Pros**: Safer than raw SQL, still flexible  
+**Cons**: Not using model features
+
+### 3. Eloquent ORM (Recommended)
+
+While not extensively used in the current codebase, Eloquent provides the most Laravel-native approach:
+
+```php
+// Find by ID
+$user = Usuario::find($id);
+
+// Find by attribute
+$user = Usuario::where('usuario', 'johndoe')->first();
+
+// Create
+$user = Usuario::create([
+    'tipo_usuario' => 1,
+    'nombre' => 'John',
+    'usuario' => 'johndoe',
+    'password' => bcrypt('password'),
+    'correo' => 'john@example.com',
+    'estado' => 1
+]);
+
+// Update
+$user = Usuario::find($id);
+$user->nombre = 'Jane';
+$user->save();
+
+// Delete
+$user = Usuario::find($id);
+$user->delete();
+```
+
+## Creating Additional Models
+
+For better code organization, you could create Eloquent models for other tables:
+
+### Producto Model Example
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Producto extends Model
+{
+    protected $table = 'producto';
+    protected $primaryKey = 'id_producto';
+    public $timestamps = false;
+
+    protected $fillable = [
+        'id_categoria',
+        'codigo',
+        'nombre',
+        'precio',
+        'stock',
+        'descripcion',
+        'foto',
+        'estado'
+    ];
+
+    protected $casts = [
+        'precio' => 'decimal:2',
+        'stock' => 'integer',
+        'estado' => 'boolean'
+    ];
+
+    // Relationships
+    public function categoria()
+    {
+        return $this->belongsTo(Categoria::class, 'id_categoria', 'id_categoria');
+    }
+
+    public function entradas()
+    {
+        return $this->hasMany(Entrada::class, 'id_producto', 'id_producto');
+    }
+
+    public function ventaDetalles()
+    {
+        return $this->hasMany(VentaDetalle::class, 'id_producto', 'id_producto');
+    }
+
+    // Accessors
+    public function getFotoUrlAttribute()
+    {
+        return $this->foto 
+            ? asset('storage/FOTO-PRODUCTOS/' . $this->foto)
+            : null;
+    }
+
+    // Scopes
+    public function scopeActivos($query)
+    {
+        return $query->where('estado', 1);
+    }
+
+    public function scopeBuscar($query, $termino)
+    {
+        return $query->where(function($q) use ($termino) {
+            $q->where('codigo', 'like', "%{$termino}%")
+              ->orWhere('nombre', 'like', "%{$termino}%");
+        });
+    }
+}
+```
+
+**Usage**:
+```php
+// With relationships
+$producto = Producto::with('categoria')->find($id);
+echo $producto->categoria->nombre;
+
+// Using scopes
+$activos = Producto::activos()->get();
+$resultados = Producto::buscar('laptop')->activos()->get();
+
+// Using accessor
+$producto = Producto::find($id);
+echo $producto->foto_url; // Returns full URL
+```
+
+### Categoria Model Example
+
+```php
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Categoria extends Model
+{
+    protected $table = 'categoria';
+    protected $primaryKey = 'id_categoria';
+    public $timestamps = false;
+
+    protected $fillable = ['nombre'];
+
+    public function productos()
+    {
+        return $this->hasMany(Producto::class, 'id_categoria', 'id_categoria');
+    }
+
+    public function productosActivos()
+    {
+        return $this->hasMany(Producto::class, 'id_categoria', 'id_categoria')
+                    ->where('estado', 1);
+    }
+}
+```
+
+## Eloquent Relationships
+
+Eloquent supports various relationship types:
+
+### One-to-Many
+
+```php
+// Categoria has many Productos
+class Categoria extends Model
+{
+    public function productos()
+    {
+        return $this->hasMany(Producto::class, 'id_categoria', 'id_categoria');
+    }
+}
+
+// Usage
+$categoria = Categoria::find(1);
+foreach ($categoria->productos as $producto) {
+    echo $producto->nombre;
+}
+```
+
+### Belongs To (Inverse of One-to-Many)
+
+```php
+// Producto belongs to Categoria
+class Producto extends Model
+{
+    public function categoria()
+    {
+        return $this->belongsTo(Categoria::class, 'id_categoria', 'id_categoria');
+    }
+}
+
+// Usage
+$producto = Producto::find(1);
+echo $producto->categoria->nombre;
+```
+
+### Many-to-Many
+
+Not currently used in the schema, but could be implemented for features like product tags:
+
+```php
+class Producto extends Model
+{
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class, 'producto_tag');
+    }
+}
+```
+
+## Model Features
+
+### Attribute Casting
+
+Automatically convert attributes to specific types:
+
+```php
+protected $casts = [
+    'precio' => 'decimal:2',
+    'stock' => 'integer',
+    'estado' => 'boolean',
+    'fecha' => 'datetime',
+];
+```
+
+### Accessors & Mutators
+
+**Accessors** (getters):
+```php
+public function getNombreCompletoAttribute()
+{
+    return "{$this->nombre} {$this->apellido}";
+}
+
+// Usage
+$user = Usuario::find(1);
+echo $user->nombre_completo; // Calls accessor
+```
+
+**Mutators** (setters):
+```php
+public function setPasswordAttribute($value)
+{
+    $this->attributes['password'] = bcrypt($value);
+}
+
+// Usage
+$user = new Usuario();
+$user->password = 'plain-text'; // Automatically hashed
+```
+
+### Query Scopes
+
+Reusable query constraints:
+
+```php
+// Local scope
+public function scopeActivos($query)
+{
+    return $query->where('estado', 1);
+}
+
+// Usage
+$activos = Producto::activos()->get();
+$categoria = Producto::activos()->where('id_categoria', 1)->get();
+```
+
+### Model Events
+
+Hook into model lifecycle:
+
+```php
+protected static function booted()
+{
+    static::creating(function ($producto) {
+        // Before creating
+        $producto->estado = 1;
+    });
+
+    static::deleting(function ($producto) {
+        // Before deleting
+        // Delete associated files
+        if ($producto->foto) {
+            Storage::delete('public/FOTO-PRODUCTOS/' . $producto->foto);
+        }
+    });
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Models" icon="code">
+    Prefer Eloquent models over raw queries for maintainability
+  </Card>
+  <Card title="Define Relationships" icon="link">
+    Use Eloquent relationships instead of manual joins
+  </Card>
+  <Card title="Mass Assignment Protection" icon="shield">
+    Always define `$fillable` or `$guarded`
+  </Card>
+  <Card title="Eager Loading" icon="bolt">
+    Use `with()` to prevent N+1 query problems
+  </Card>
+</CardGroup>
+
+### Preventing N+1 Queries
+
+**Bad** (N+1 problem):
+```php
+$productos = Producto::all();
+foreach ($productos as $producto) {
+    echo $producto->categoria->nombre; // Query for each product!
+}
+```
+
+**Good** (Eager loading):
+```php
+$productos = Producto::with('categoria')->get();
+foreach ($productos as $producto) {
+    echo $producto->categoria->nombre; // No additional queries
+}
+```
+
+## Migration from Query Builder to Eloquent
+
+To modernize the codebase, consider refactoring controllers:
+
+**Before** (Query Builder):
+```php
+$datos = DB::table("producto")
+    ->join("categoria", "producto.id_categoria", "=", "categoria.id_categoria")
+    ->select("producto.*", "categoria.nombre as categoria")
+    ->paginate(10);
+```
+
+**After** (Eloquent):
+```php
+$datos = Producto::with('categoria')->paginate(10);
+```
+
+In the view:
+```php
+@foreach($datos as $producto)
+    {{ $producto->nombre }} - {{ $producto->categoria->nombre }}
+@endforeach
+```
+
+## Testing with Models
+
+Eloquent models integrate well with Laravel testing:
+
+```php
+public function test_create_producto()
+{
+    $categoria = Categoria::factory()->create();
+    
+    $producto = Producto::create([
+        'id_categoria' => $categoria->id_categoria,
+        'codigo' => 'TEST001',
+        'nombre' => 'Test Product',
+        'precio' => 99.99,
+        'stock' => 10,
+        'estado' => 1
+    ]);
+
+    $this->assertDatabaseHas('producto', [
+        'codigo' => 'TEST001'
+    ]);
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Schema" icon="database" href="/database/schema">
+    Review the complete database structure
+  </Card>
+  <Card title="Controllers" icon="code" href="/api/controllers">
+    See how models are used in controllers
+  </Card>
+</CardGroup>

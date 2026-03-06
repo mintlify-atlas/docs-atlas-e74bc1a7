@@ -1,0 +1,464 @@
+---
+title: "Database Schema"
+description: "Complete database structure for Sistema de Ventas"
+---
+
+## Database Overview
+
+Sistema de Ventas uses a MySQL database with UTF8MB4 encoding. The schema (`BD/tutorial_sistema_ventas.sql`) includes 10 core tables for managing products, sales, inventory, users, and company information.
+
+### Database Configuration
+
+```sql
+CREATE DATABASE tutorial_sistema_ventas 
+  CHARACTER SET utf8mb4 
+  COLLATE utf8mb4_general_ci;
+```
+
+## Entity Relationship Diagram
+
+The database follows a relational structure with the following relationships:
+
+```
+tipo_usuario (1) ————— (N) usuario
+usuario (1) ————— (N) venta
+cliente (1) ————— (N) venta
+venta (1) ————— (N) venta_detalle
+producto (1) ————— (N) venta_detalle
+categoria (1) ————— (N) producto
+producto (1) ————— (N) entrada
+proveedor (1) ————— (N) entrada
+```
+
+## Core Tables
+
+### categoria
+
+Stores product categories for organization.
+
+```sql
+CREATE TABLE `categoria` (
+  `id_categoria` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id_categoria`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_categoria | int | PRIMARY KEY, AUTO_INCREMENT | Unique category identifier |
+| nombre | varchar(100) | | Category name |
+
+**Sample Data**:
+```sql
+INSERT INTO `categoria` VALUES 
+  (20,'Electrónica'),
+  (29,'Tecnología'),
+  (30,'ELECTRODOMÉSTICOS'),
+  (31,'CAMAS');
+```
+
+### producto
+
+Main product table with pricing, stock, and category information.
+
+```sql
+CREATE TABLE `producto` (
+  `id_producto` int NOT NULL AUTO_INCREMENT,
+  `id_categoria` int NOT NULL,
+  `codigo` varchar(255) DEFAULT NULL,
+  `nombre` varchar(50) NOT NULL,
+  `precio` decimal(10,2) NOT NULL,
+  `stock` int NOT NULL,
+  `descripcion` varchar(255) DEFAULT NULL,
+  `foto` varchar(255) DEFAULT NULL,
+  `estado` tinyint NOT NULL,
+  PRIMARY KEY (`id_producto`),
+  KEY `fk5` (`id_categoria`),
+  CONSTRAINT `fk5` FOREIGN KEY (`id_categoria`) 
+    REFERENCES `categoria` (`id_categoria`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_producto | int | PRIMARY KEY, AUTO_INCREMENT | Unique product identifier |
+| id_categoria | int | FOREIGN KEY → categoria | Product category |
+| codigo | varchar(255) | | Product code/SKU |
+| nombre | varchar(50) | NOT NULL | Product name |
+| precio | decimal(10,2) | NOT NULL | Unit price |
+| stock | int | NOT NULL | Current stock quantity |
+| descripcion | varchar(255) | | Product description |
+| foto | varchar(255) | | Photo filename |
+| estado | tinyint | NOT NULL | Status (1=active, 0=inactive) |
+
+**Relationships**:
+- Belongs to `categoria` via `id_categoria`
+- Has many `entrada` records
+- Has many `venta_detalle` records
+
+**Sample Data**:
+```sql
+INSERT INTO `producto` VALUES 
+  (29,29,'0001','Televisor 50',1200.00,35,'pantalla FHD',NULL,1),
+  (30,20,'12345678','Radio',150.00,97,'radio fm/am',NULL,1);
+```
+
+### tipo_usuario
+
+Defines user roles/types in the system.
+
+```sql
+CREATE TABLE `tipo_usuario` (
+  `id_tipo` int NOT NULL AUTO_INCREMENT,
+  `tipo` varchar(100) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id_tipo`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_tipo | int | PRIMARY KEY, AUTO_INCREMENT | User type identifier |
+| tipo | varchar(100) | NOT NULL | Type name |
+
+**Sample Data**:
+```sql
+INSERT INTO `tipo_usuario` VALUES 
+  (1,'administrador'),
+  (2,'empleado');
+```
+
+### usuario
+
+System users with authentication and profile information.
+
+```sql
+CREATE TABLE `usuario` (
+  `id_usuario` int NOT NULL AUTO_INCREMENT,
+  `tipo_usuario` int NOT NULL,
+  `nombre` varchar(100) DEFAULT NULL,
+  `apellido` varchar(100) DEFAULT NULL,
+  `usuario` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(100) DEFAULT NULL,
+  `correo` varchar(100) NOT NULL,
+  `foto` varchar(255) DEFAULT NULL,
+  `estado` tinyint NOT NULL,
+  PRIMARY KEY (`id_usuario`),
+  KEY `fk1` (`tipo_usuario`),
+  CONSTRAINT `fk1` FOREIGN KEY (`tipo_usuario`) 
+    REFERENCES `tipo_usuario` (`id_tipo`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_usuario | int | PRIMARY KEY, AUTO_INCREMENT | Unique user identifier |
+| tipo_usuario | int | FOREIGN KEY → tipo_usuario | User role |
+| nombre | varchar(100) | | First name |
+| apellido | varchar(100) | | Last name |
+| usuario | varchar(100) | NOT NULL | Username for login |
+| password | varchar(255) | NOT NULL | Hashed password (bcrypt) |
+| telefono | varchar(20) | | Phone number |
+| direccion | varchar(100) | | Address |
+| correo | varchar(100) | NOT NULL | Email address |
+| foto | varchar(255) | | Profile photo filename |
+| estado | tinyint | NOT NULL | Status (1=active, 0=inactive) |
+
+**Relationships**:
+- Belongs to `tipo_usuario` via `tipo_usuario`
+- Has many `venta` records
+
+**Sample Data**:
+```sql
+INSERT INTO `usuario` VALUES 
+  (8,1,'ismael','perez','isai','$2y$10$/7WvJEd3/IIMhpA68G49.O0n4HkSV0siV4c8HhbuKYSQNbnmM1m1S',
+   '987456321','lima','isai123@gmail.com',NULL,1),
+  (23,2,'juan','quispe','juan','$2y$10$/7WvJEd3/IIMhpA68G49.O0n4HkSV0siV4c8HhbuKYSQNbnmM1m1S',
+   '987456321','av. los incas','juan@gmail.com',NULL,1);
+```
+
+<Note>
+  Passwords are hashed using bcrypt (Laravel's default). Never store plain text passwords.
+</Note>
+
+### cliente
+
+Customer information for sales transactions.
+
+```sql
+CREATE TABLE `cliente` (
+  `id_cliente` int NOT NULL AUTO_INCREMENT,
+  `dni` varchar(50) DEFAULT NULL,
+  `nombre` varchar(100) DEFAULT '',
+  `apellido` varchar(100) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(255) DEFAULT NULL,
+  `correo` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id_cliente`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_cliente | int | PRIMARY KEY, AUTO_INCREMENT | Unique customer identifier |
+| dni | varchar(50) | | National ID number |
+| nombre | varchar(100) | | First name |
+| apellido | varchar(100) | | Last name |
+| telefono | varchar(20) | | Phone number |
+| direccion | varchar(255) | | Address |
+| correo | varchar(255) | | Email address |
+
+**Relationships**:
+- Has many `venta` records
+
+### proveedor
+
+Supplier information for inventory management.
+
+```sql
+CREATE TABLE `proveedor` (
+  `id_proveedor` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) DEFAULT NULL,
+  `apellido` varchar(100) DEFAULT NULL,
+  `dni` varchar(50) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(100) DEFAULT NULL,
+  `ruc` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id_proveedor`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_proveedor | int | PRIMARY KEY, AUTO_INCREMENT | Unique supplier identifier |
+| nombre | varchar(100) | | First name |
+| apellido | varchar(100) | | Last name |
+| dni | varchar(50) | | National ID number |
+| telefono | varchar(20) | | Phone number |
+| direccion | varchar(100) | | Address |
+| ruc | varchar(100) | | Tax ID (RUC) |
+
+**Relationships**:
+- Has many `entrada` records
+
+### entrada
+
+Inventory entries (stock purchases from suppliers).
+
+```sql
+CREATE TABLE `entrada` (
+  `id_entrada` int NOT NULL AUTO_INCREMENT,
+  `id_producto` int NOT NULL,
+  `id_proveedor` int DEFAULT NULL,
+  `cantidad` int NOT NULL,
+  `precio` decimal(10,2) NOT NULL,
+  `fecha` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_entrada`),
+  KEY `fk7` (`id_producto`),
+  KEY `fk8` (`id_proveedor`),
+  CONSTRAINT `fk7` FOREIGN KEY (`id_producto`) 
+    REFERENCES `producto` (`id_producto`) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk8` FOREIGN KEY (`id_proveedor`) 
+    REFERENCES `proveedor` (`id_proveedor`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_entrada | int | PRIMARY KEY, AUTO_INCREMENT | Unique entry identifier |
+| id_producto | int | FOREIGN KEY → producto, NOT NULL | Product purchased |
+| id_proveedor | int | FOREIGN KEY → proveedor | Supplier |
+| cantidad | int | NOT NULL | Quantity purchased |
+| precio | decimal(10,2) | NOT NULL | Purchase price per unit |
+| fecha | datetime | | Entry date/time |
+
+**Relationships**:
+- Belongs to `producto` via `id_producto`
+- Belongs to `proveedor` via `id_proveedor`
+
+### empresa
+
+Company information and branding.
+
+```sql
+CREATE TABLE `empresa` (
+  `id_empresa` int NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(255) DEFAULT NULL,
+  `ubicacion` varchar(255) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT '',
+  `ruc` varchar(50) DEFAULT NULL,
+  `correo` varchar(100) DEFAULT NULL,
+  `foto` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id_empresa`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_empresa | int | PRIMARY KEY, AUTO_INCREMENT | Company identifier |
+| nombre | varchar(255) | | Company name |
+| ubicacion | varchar(255) | | Company address |
+| telefono | varchar(20) | | Phone number |
+| ruc | varchar(50) | | Tax ID (RUC) |
+| correo | varchar(100) | | Email address |
+| foto | varchar(255) | | Logo filename |
+
+**Sample Data**:
+```sql
+INSERT INTO `empresa` VALUES 
+  (1,'COMPU CENTER2','Jr. Grau santa rosa','925310896',
+   '78945612378','movilcenter@gmail.com',NULL);
+```
+
+## Transaction Tables
+
+### venta
+
+Sales transaction header information.
+
+```sql
+CREATE TABLE `venta` (
+  `id_venta` int NOT NULL AUTO_INCREMENT,
+  `id_cliente` int NOT NULL,
+  `id_usuario` int NOT NULL,
+  `fecha` datetime NOT NULL,
+  `total` decimal(10,2) NOT NULL,
+  `descuento` decimal(10,2) DEFAULT '0.00',
+  `pagoTotal` decimal(10,2) DEFAULT NULL,
+  `estado` tinyint DEFAULT NULL,
+  PRIMARY KEY (`id_venta`),
+  KEY `fk3` (`id_cliente`),
+  KEY `fk4` (`id_usuario`),
+  CONSTRAINT `fk3` FOREIGN KEY (`id_cliente`) 
+    REFERENCES `cliente` (`id_cliente`) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk4` FOREIGN KEY (`id_usuario`) 
+    REFERENCES `usuario` (`id_usuario`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_venta | int | PRIMARY KEY, AUTO_INCREMENT | Unique sale identifier |
+| id_cliente | int | FOREIGN KEY → cliente, NOT NULL | Customer |
+| id_usuario | int | FOREIGN KEY → usuario, NOT NULL | User who made sale |
+| fecha | datetime | NOT NULL | Sale date/time |
+| total | decimal(10,2) | NOT NULL | Total before discount |
+| descuento | decimal(10,2) | DEFAULT 0.00 | Discount amount |
+| pagoTotal | decimal(10,2) | | Final payment amount |
+| estado | tinyint | | Status |
+
+**Relationships**:
+- Belongs to `cliente` via `id_cliente`
+- Belongs to `usuario` via `id_usuario`
+- Has many `venta_detalle` records
+
+### venta_detalle
+
+Sales transaction line items (individual products sold).
+
+```sql
+CREATE TABLE `venta_detalle` (
+  `id_venta_detalle` int NOT NULL AUTO_INCREMENT,
+  `id_venta` int NOT NULL,
+  `id_producto` int NOT NULL,
+  `precio` decimal(10,2) DEFAULT NULL,
+  `cantidad` int DEFAULT NULL,
+  `subtotal` decimal(10,2) DEFAULT NULL,
+  `estado` tinyint DEFAULT NULL,
+  PRIMARY KEY (`id_venta_detalle`),
+  KEY `fk2` (`id_producto`),
+  KEY `venta` (`id_venta`),
+  CONSTRAINT `fk2` FOREIGN KEY (`id_producto`) 
+    REFERENCES `producto` (`id_producto`) 
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `venta` FOREIGN KEY (`id_venta`) 
+    REFERENCES `venta` (`id_venta`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+```
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id_venta_detalle | int | PRIMARY KEY, AUTO_INCREMENT | Line item identifier |
+| id_venta | int | FOREIGN KEY → venta, NOT NULL | Parent sale |
+| id_producto | int | FOREIGN KEY → producto, NOT NULL | Product sold |
+| precio | decimal(10,2) | | Unit price at time of sale |
+| cantidad | int | | Quantity sold |
+| subtotal | decimal(10,2) | | Line total (precio * cantidad) |
+| estado | tinyint | | Status |
+
+**Relationships**:
+- Belongs to `venta` via `id_venta`
+- Belongs to `producto` via `id_producto`
+
+## Foreign Key Constraints
+
+All foreign keys use `ON DELETE CASCADE ON UPDATE CASCADE`:
+
+- Deleting a category deletes all its products
+- Deleting a product deletes its inventory entries and sale details
+- Deleting a supplier deletes their inventory entries
+- Deleting a customer deletes their sales
+- Deleting a user deletes sales they created
+- Deleting a sale deletes its line items
+
+<Warning>
+  CASCADE deletes can remove related data. Always backup before bulk deletions.
+</Warning>
+
+## Indexes
+
+The schema includes indexes on:
+
+- All primary keys (automatic)
+- All foreign key columns for join performance
+
+## Data Types
+
+### Numeric Types
+- `int`: Integer IDs, quantities, stock levels
+- `decimal(10,2)`: Monetary values (10 digits, 2 decimal places)
+- `tinyint`: Status flags and small integers
+
+### String Types
+- `varchar(50-255)`: Variable length text fields
+- Text encoding: UTF8MB4 (supports emojis and special characters)
+
+### Date/Time Types
+- `datetime`: Timestamps for sales and inventory entries
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use Transactions" icon="shield">
+    Wrap related inserts/updates in database transactions
+  </Card>
+  <Card title="Validate Data" icon="check">
+    Always validate at application level before database operations
+  </Card>
+  <Card title="Regular Backups" icon="database">
+    Schedule automated daily backups
+  </Card>
+  <Card title="Monitor Performance" icon="chart-line">
+    Use EXPLAIN on slow queries to optimize
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Models" icon="code" href="/database/models">
+    Learn about Eloquent model implementations
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/overview">
+    Explore the API that uses this schema
+  </Card>
+</CardGroup>

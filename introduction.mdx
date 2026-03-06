@@ -1,0 +1,146 @@
+---
+title: "Introduction"
+description: "Learn about Sistema de Ventas, a comprehensive sales management system built with Laravel"
+---
+
+## What is Sistema de Ventas?
+
+Sistema de Ventas is a comprehensive web-based sales management system designed to help businesses efficiently manage their products, inventory, customers, and sales operations. Built with Laravel 11, it provides a robust and scalable solution for retail and wholesale businesses.
+
+## Key Capabilities
+
+<CardGroup cols={2}>
+  <Card title="Product Management" icon="box">
+    Complete CRUD operations for managing your product catalog with categories, pricing, stock levels, and images.
+  </Card>
+  <Card title="Inventory Control" icon="warehouse">
+    Real-time inventory tracking with stock entries, supplier management, and automated stock level monitoring.
+  </Card>
+  <Card title="User Management" icon="users">
+    Secure authentication system with role-based access control and user profile management.
+  </Card>
+  <Card title="Company Profile" icon="building">
+    Centralized business information management including company details, branding, and logo customization.
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+Sistema de Ventas follows the Model-View-Controller (MVC) pattern using Laravel's architecture:
+
+```
+app/
+├── Http/
+│   ├── Controllers/      # Business logic and request handling
+│   └── Middleware/       # Request filtering and authentication
+├── Models/              # Data models and relationships
+└── Providers/           # Service providers
+
+resources/
+└── views/               # Blade templates for UI
+
+routes/
+└── web.php              # Route definitions
+
+database/
+├── migrations/          # Database schema migrations
+└── seeders/             # Database seeders
+```
+
+## Core Features
+
+### Product & Category Management
+
+- Create, read, update, and delete products
+- Organize products into categories
+- Track pricing and stock levels
+- Upload and manage product images
+- Search products by code or name
+
+### Inventory Management
+
+- Record stock entries with supplier information
+- Track inventory movements
+- Monitor stock levels in real-time
+- Generate inventory reports
+
+### User System
+
+- User authentication with Laravel Sanctum
+- Email verification
+- Password reset functionality
+- Profile management with photo uploads
+- Role-based access control
+
+### Company Management
+
+- Configure company information
+- Upload and manage company logo
+- Set business details (RUC, address, contact)
+- Customize system branding
+
+## Technology Stack
+
+<Tabs>
+  <Tab title="Backend">
+    - **Laravel 11**: PHP framework providing MVC architecture, routing, ORM, and authentication
+    - **PHP 7.3+/8.2+**: Server-side programming language
+    - **MySQL 8.0+**: Relational database management system
+    - **Laravel Sanctum**: API authentication
+    - **Laravel UI**: Authentication scaffolding
+  </Tab>
+  <Tab title="Frontend">
+    - **Bootstrap 4**: Responsive CSS framework
+    - **jQuery 3.6**: JavaScript library for DOM manipulation
+    - **Laravel Mix**: Asset compilation and bundling
+    - **Blade**: Laravel's templating engine
+  </Tab>
+  <Tab title="Development">
+    - **Composer**: PHP dependency manager
+    - **NPM**: Node package manager
+    - **Laravel Sail**: Docker development environment (optional)
+    - **PHPUnit**: Testing framework
+  </Tab>
+</Tabs>
+
+## Who Should Use This?
+
+Sistema de Ventas is ideal for:
+
+- **Small to Medium Retailers**: Manage product inventory and sales operations
+- **Wholesale Businesses**: Track products, suppliers, and stock levels
+- **Developers**: Learn Laravel best practices through a real-world application
+- **Business Owners**: Get started with digital inventory management
+
+## Getting Started
+
+<CardGroup cols={2}>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Follow step-by-step instructions to install Sistema de Ventas on your server
+  </Card>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get up and running quickly with our quick start guide
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/environment">
+    Learn how to configure database, environment, and authentication
+  </Card>
+  <Card title="Core Features" icon="sparkles" href="/features/products">
+    Explore the main features and capabilities of the system
+  </Card>
+</CardGroup>
+
+## System Requirements
+
+<Note>
+  Before installing Sistema de Ventas, ensure your server meets these requirements:
+</Note>
+
+- **PHP**: Version 7.3 or higher (8.2 recommended)
+- **MySQL**: Version 5.7 or higher (8.0+ recommended)
+- **Composer**: Latest version
+- **Web Server**: Apache or Nginx
+- **Node.js & NPM**: For frontend asset compilation
+
+## License
+
+Sistema de Ventas is open-source software licensed under the MIT license.

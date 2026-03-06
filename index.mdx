@@ -1,97 +1,116 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Sistema de Ventas Documentation"
+description: "A comprehensive sales management system built with Laravel for managing products, inventory, categories, users, and company information."
 ---
 
-## Setting up
+<div style={{
+  backgroundColor: '#ffffff',
+  padding: '4rem 2rem',
+  borderRadius: '0px',
+  marginBottom: '3rem'
+}}>
+  <div style={{
+    maxWidth: '900px',
+    margin: '0 auto',
+    textAlign: 'center'
+  }}>
+    <h1 style={{
+      fontSize: '48px',
+      fontWeight: '700',
+      fontFamily: 'Inter',
+      color: '#1a1a1a',
+      marginBottom: '1.5rem',
+      lineHeight: '1.2'
+    }}>
+      Complete Sales Management Solution
+    </h1>
+    <p style={{
+      fontSize: '20px',
+      fontFamily: 'Inter',
+      color: '#1a1a1a',
+      marginBottom: '2.5rem',
+      opacity: '0.8'
+    }}>
+      Manage your products, inventory, customers, and sales operations from a single powerful platform built with Laravel.
+    </p>
+    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+      <a href="/quickstart" style={{
+        backgroundColor: '#1a1a1a',
+        color: '#ffffff',
+        padding: '12px 28px',
+        borderRadius: '4px',
+        textDecoration: 'none',
+        fontWeight: '600',
+        fontFamily: 'Inter',
+        fontSize: '16px',
+        display: 'inline-block'
+      }}>
+        Get Started
+      </a>
+      <a href="https://github.com/isai-ismael/tutorial-sistema-ventas" style={{
+        backgroundColor: '#ffffff',
+        color: '#1a1a1a',
+        padding: '12px 28px',
+        borderRadius: '4px',
+        textDecoration: 'none',
+        fontWeight: '600',
+        fontFamily: 'Inter',
+        fontSize: '16px',
+        border: '1px solid #1a1a1a',
+        display: 'inline-block'
+      }}>
+        View on GitHub
+      </a>
+    </div>
+  </div>
+</div>
 
-Get your documentation site up and running in minutes.
+## Key Features
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+Sistema de Ventas provides everything you need to manage your sales operations efficiently.
 
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Product Management" icon="box" href="/features/products">
+    Complete CRUD operations for products with categories, pricing, stock tracking, and image uploads.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Inventory Control" icon="warehouse" href="/features/inventory">
+    Track stock entries, monitor inventory levels, and manage product availability in real-time.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Category System" icon="tags" href="/features/categories">
+    Organize products into categories for better management and customer navigation.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="User Management" icon="users" href="/features/users">
+    Full user authentication, authorization, and profile management with role-based access.
   </Card>
-</Columns>
+  <Card title="Company Profile" icon="building" href="/features/company">
+    Manage your company information, branding, and business details from a central location.
+  </Card>
+  <Card title="Search & Filter" icon="magnifying-glass" href="/features/products">
+    Powerful search functionality to quickly find products by code or name.
+  </Card>
+</CardGroup>
 
-## Create beautiful pages
+## Quick Links
 
-Everything you need to create world-class documentation.
+<CardGroup cols={3}>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Set up Sistema de Ventas on your server
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration/database">
+    Configure database and environment settings
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/overview">
+    Explore the developer API documentation
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Technology Stack
 
-## Need inspiration?
+Sistema de Ventas is built with modern, reliable technologies:
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+- **Laravel 11** - PHP framework for web applications
+- **MySQL** - Relational database management
+- **Bootstrap 4** - Responsive UI framework
+- **jQuery** - JavaScript library for dynamic interactions
+- **Laravel Sanctum** - API authentication
+- **Laravel UI** - Authentication scaffolding

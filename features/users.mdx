@@ -1,0 +1,517 @@
+---
+title: User Management
+description: Manage user accounts, authentication, profile settings, and role-based access control
+---
+
+## Overview
+
+The User Management module provides comprehensive tools for managing system users, including account creation, profile management, authentication, and role-based permissions. Each user can customize their profile and securely manage their credentials.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="User CRUD" icon="users">
+    Create, read, update, and delete user accounts
+  </Card>
+  <Card title="Role-Based Access" icon="user-shield">
+    Assign user types with different permission levels
+  </Card>
+  <Card title="Profile Management" icon="id-card">
+    Personal profile updates with photo uploads
+  </Card>
+  <Card title="Secure Authentication" icon="lock">
+    Password hashing and secure login system
+  </Card>
+</CardGroup>
+
+## User Types & Roles
+
+The system supports multiple user types, each with different access levels and permissions:
+
+```php
+// UsuarioController.php:15-19
+$datos = DB::select("SELECT usuario.*, tipo_usuario.tipo from usuario
+    inner join tipo_usuario ON usuario.tipo_usuario=tipo_usuario.id_tipo");
+
+$tipos = DB::select("SELECT * FROM tipo_usuario");
+return view('vistas/usuario/indexUsuario', compact('datos', 'tipos'));
+```
+
+Common user types include:
+- **Administrator** - Full system access
+- **Manager** - Elevated permissions for operations
+- **Sales Staff** - Point of sale and customer management
+- **Warehouse Staff** - Inventory and stock management
+
+<Note>
+  User types are defined in the `tipo_usuario` table and can be customized based on your business needs.
+</Note>
+
+## Creating User Accounts
+
+### User Registration Workflow
+
+When creating a new user account, administrators provide:
+
+1. **User Type** - Determines access level and permissions
+2. **Personal Information** - Name and last name
+3. **Login Credentials** - Username and password
+4. **Contact Details** - Email, phone, and address
+5. **Profile Photo** - Optional user image
+
+### Validation Rules
+
+The system enforces strict validation for user creation:
+
+```php
+// UsuarioController.php:37-45
+$request->validate([
+    "tipo_usuario" => "required|integer",
+    "nombre" => "required",
+    "apellido" => "required",
+    "usuario" => "required|unique:usuario,usuario",
+    "password" => "required",
+    "correo" => "required|unique:usuario,correo",
+    "foto" => "mimes:jpg,png,jpeg,gif|max:2048"
+]);
+```
+
+<Accordion title="Field Requirements">
+  - **User Type**: Must be a valid integer referencing an existing user type
+  - **Username**: Required and must be unique across all users
+  - **Password**: Required (automatically encrypted before storage)
+  - **Email**: Required and must be unique
+  - **Photo**: Optional, max 2MB, formats: JPG, PNG, JPEG, GIF
+  - **Name & Last Name**: Required text fields
+  - **Phone & Address**: Optional contact information
+</Accordion>
+
+### Password Security
+
+Passwords are automatically hashed using bcrypt before storage:
+
+```php
+// UsuarioController.php:48-57
+$id_registro = DB::table("usuario")->insertGetId([
+    "tipo_usuario" => $request->tipo_usuario,
+    "nombre" => $request->nombre,
+    "apellido" => $request->apellido,
+    "usuario" => $request->usuario,
+    "password" => bcrypt($request->password),  // Secure password hashing
+    "telefono" => $request->telefono,
+    "direccion" => $request->direccion,
+    "correo" => $request->correo
+]);
+```
+
+<Warning>
+  Never store passwords in plain text. The system automatically uses bcrypt hashing to protect user credentials.
+</Warning>
+
+## Profile Management
+
+### Viewing Your Profile
+
+Authenticated users can access their personal profile:
+
+```php
+// PerfilController.php:13-16
+public function index()
+{
+    $idUsuario = Auth::user()->id_usuario;
+    $datos = DB::select("select * from usuario where id_usuario=$idUsuario");
+    return view("vistas.perfil", compact("datos"));
+}
+```
+
+The profile displays:
+- User name and last name
+- Username and email
+- Contact information
+- User type and permissions
+- Profile photo
+
+### Updating Profile Information
+
+Users can update their own profile details:
+
+```php
+// PerfilController.php:84-111
+$request->validate([
+    "nombre" => "required",
+    "apellido" => "required",
+    "correo" => "required|email",
+    "usuario" => "required",
+]);
+
+$idUsuario = Auth::user()->id_usuario;
+
+try {
+    $modificar = DB::update(
+        " update usuario set nombre=?, apellido=?, usuario=?, telefono=?, direccion=?, correo=? where id_usuario=$idUsuario ",[
+            $request->nombre,
+            $request->apellido,
+            $request->usuario,
+            $request->telefono,
+            $request->direccion,
+            $request->correo,
+        ]
+    );
+    $modificar = true;
+} catch (\Throwable $th) {
+    $modificar = false;
+}
+```
+
+<Note>
+  Users can only edit their own profile information. Administrators can modify any user's details through the user management interface.
+</Note>
+
+## Photo Management
+
+### Upload or Update Profile Photo
+
+Users can upload a profile photo that represents them in the system:
+
+```php
+// PerfilController.php:19-58
+$request->validate([
+    "foto" => "required|image|mimes:jpeg,png,jpg"
+]);
+
+$file = $request->file("foto");
+$idUsuario = Auth::user()->id_usuario;
+$nombreArchivo = $idUsuario . "." . strtolower($file->getClientOriginalExtension());
+$ruta = storage_path("app/public/FOTOS-PERFIL-USUARIO/" . $nombreArchivo);
+
+// Delete old photo if exists
+$verificarFoto = DB::select(" select foto from usuario where id_usuario=$idUsuario  ");
+$verificarFoto = $verificarFoto[0]->foto;
+$nombreFotoAnterior = $verificarFoto;
+
+if ($verificarFoto = !null) {
+    $rutaFotoAnterior = storage_path("app/public/FOTOS-PERFIL-USUARIO/$nombreFotoAnterior");
+    try {
+        unlink($rutaFotoAnterior);
+    } catch (\Throwable $th) {}
+}
+
+$res = move_uploaded_file($file, $ruta);
+```
+
+**Photo specifications:**
+- Formats: JPEG, PNG, JPG
+- Naming: `{user_id}.{extension}`
+- Storage: `storage/app/public/FOTOS-PERFIL-USUARIO/`
+- Replaces previous photo automatically
+
+### Delete Profile Photo
+
+Users can remove their profile photo:
+
+```php
+// PerfilController.php:61-79
+$idUsuario = Auth::user()->id_usuario;
+$nombreFoto = Auth::user()->foto;
+$ruta = storage_path("app/public/FOTOS-PERFIL-USUARIO/$nombreFoto");
+
+try {
+    $res = unlink($ruta);
+    $actualizarCampoFoto = DB::update("update usuario set foto='' where id_usuario=$idUsuario ");
+} catch (\Throwable $th) {
+    $res = false;
+    $actualizarCampoFoto = false;
+}
+```
+
+## Password Management
+
+### Changing Your Password
+
+Users can securely change their password by providing:
+- Current password (for verification)
+- New password
+
+```php
+// PerfilController.php:118-156
+$request->validate([
+    "claveActual"=>"required",
+    "claveNueva"=>"required",
+]);
+
+$claveActual = ($request->claveActual);
+$claveNueva = $request->claveNueva;
+
+$idUsuario= Auth::user()->id_usuario;
+$verificarClave=DB::select(" select password from usuario where id_usuario=$idUsuario ");
+$verificarClave=$verificarClave[0]->password;
+
+if(Hash::check($claveActual,$verificarClave)){
+    $claveNueva=Hash::make($claveNueva);
+    
+    try {
+        $actualizar=DB::update(
+            " update usuario set password=? where id_usuario=$idUsuario ",
+            [$claveNueva]
+        );
+        $actualizar=true;
+    } catch (\Throwable $th) {
+        $actualizar=false;
+    }
+    
+    if ($actualizar) {
+        return back()->with("CORRECTO", "Clave actualizada correctamente");
+    }
+} else {
+    return back()->with("INCORRECTO", "La clave actual no es correcta");
+}
+```
+
+<Accordion title="Password Change Process">
+  1. User navigates to "Change Password" section
+  2. Enters current password
+  3. Enters new password
+  4. System verifies current password using Hash::check()
+  5. New password is hashed with Hash::make()
+  6. Database is updated with new hashed password
+  7. Success message displayed to user
+</Accordion>
+
+<Note>
+  The system verifies the current password before allowing changes to prevent unauthorized password resets.
+</Note>
+
+## Administrative User Management
+
+### Viewing All Users
+
+Administrators can view a list of all system users with their roles:
+
+```php
+// UsuarioController.php:14-19
+$datos = DB::select("SELECT usuario.*, tipo_usuario.tipo from usuario
+    inner join tipo_usuario ON usuario.tipo_usuario=tipo_usuario.id_tipo");
+
+$tipos = DB::select("SELECT * FROM tipo_usuario");
+return view('vistas/usuario/indexUsuario', compact('datos', 'tipos'));
+```
+
+### Updating User Details (Admin)
+
+Administrators can modify user information:
+
+```php
+// UsuarioController.php:101-133
+$request->validate([
+    "txttipo" => "required|integer",
+    "txtnombre" => "required",
+    "txtapellido" => "required",
+    "txtusuario" => "required|unique:usuario,usuario," . $id . ",id_usuario",
+    "txtcorreo" => "required|unique:usuario,correo," . $id . ",id_usuario",
+    "txttelefono"=>"required",
+    "txtdireccion"=>"required"
+]);
+
+try {
+    $actualiar=DB::update(
+        "update usuario set tipo_usuario=?, nombre=?, apellido=?, usuario=?, telefono=?, direccion=?, correo=? where id_usuario=?",
+        [
+            $request->txttipo,
+            $request->txtnombre,
+            $request->txtapellido,
+            $request->txtusuario,
+            $request->txttelefono,
+            $request->txtdireccion,
+            $request->txtcorreo,
+            $id
+        ]
+    );
+} catch (\Throwable $th) {
+    $actualiar=0;
+}
+```
+
+<Warning>
+  When updating users, ensure usernames and emails remain unique. The validation rules exclude the current user's ID to allow keeping the same username/email.
+</Warning>
+
+### Managing User Photos (Admin)
+
+Administrators can upload or update photos for any user:
+
+```php
+// UsuarioController.php:159-186
+$request->validate([
+    "foto" => "required|mimes:jpg,png,jpeg,gif",
+    "txtid" => "required|integer"
+]);
+
+$id_usuario = $request->txtid;
+
+try {
+    $foto = $request->file("foto");
+    $nombreFoto = "usuario_" . $id_usuario . "." . $foto->getClientOriginalExtension();
+    $ruta = storage_path("app/public/FOTOS-PERFIL-USUARIO/" . $nombreFoto);
+    copy($foto, $ruta);
+} catch (\Throwable $th) {
+    $nombreFoto = "";
+}
+
+$actualizar = DB::update("update usuario set foto=? where id_usuario=?", [$nombreFoto, $id_usuario]);
+```
+
+### Deleting Users
+
+Administrators can remove user accounts:
+
+```php
+// UsuarioController.php:138-156
+$validar=DB::select(" select count(*) as total from usuario where id_usuario=?", [$id]);
+if ($validar[0]->total<=0) {
+    return back()->with("INCORRECTO", "No se puede eliminar el usuario, no existe");
+}
+
+try {
+    $eliminar=DB::delete(" delete from usuario where id_usuario=$id ");
+} catch (\Throwable $th) {
+    $eliminar=0;
+}
+
+if ($eliminar==1) {
+    return back()->with("CORRECTO", "Usuario eliminado correctamente"); 
+} else {
+    return back()->with("INCORRECTO", "No se pudo eliminar el usuario");
+}
+```
+
+<Warning>
+  Deleting a user may fail if they have associated records in other tables (sales, transactions, etc.). Consider deactivating users instead of deleting them to maintain data integrity.
+</Warning>
+
+## Authentication
+
+### Login System
+
+The system uses Laravel's built-in authentication:
+
+```php
+// web.php:34
+Auth::routes(['verify' => true]);
+```
+
+**Features:**
+- Secure login with username/password
+- Email verification support
+- Password reset functionality
+- Session management
+- Remember me option
+
+### Protected Routes
+
+All user-facing routes require authentication:
+
+```php
+// web.php:69-72
+Route::resource('usuario', UsuarioController::class)->middleware('verified');
+Route::post("registrar-foto-usuario",[UsuarioController::class, "registrarFotoUsuario"])
+    ->name("usuario.registrarFotoUsuario")->middleware('verified');
+Route::delete("eliminar-usuarios",[UsuarioController::class ,"eliminarUsuario"])
+    ->name("usuario.eliminar")->middleware('verified');
+```
+
+<Note>
+  The `verified` middleware ensures users have verified their email addresses before accessing protected features.
+</Note>
+
+## Database Structure
+
+Users are stored with the following schema:
+
+```sql
+-- usuario table
+id_usuario INT PRIMARY KEY AUTO_INCREMENT
+tipo_usuario INT FOREIGN KEY -- References tipo_usuario.id_tipo
+nombre VARCHAR
+apellido VARCHAR
+usuario VARCHAR UNIQUE -- Username for login
+password VARCHAR -- Hashed password
+telefono VARCHAR
+direccion VARCHAR
+correo VARCHAR UNIQUE -- Email address
+foto VARCHAR -- Profile photo filename
+
+-- tipo_usuario table
+id_tipo INT PRIMARY KEY
+tipo VARCHAR -- User type name (Admin, Manager, etc.)
+```
+
+## Best Practices
+
+<Accordion title="Password Security">
+  - Require strong passwords (minimum length, complexity)
+  - Never store passwords in plain text
+  - Use bcrypt or Hash facade for password hashing
+  - Implement password change on first login
+  - Enforce regular password changes for sensitive roles
+  - Enable two-factor authentication (future enhancement)
+</Accordion>
+
+<Accordion title="User Access Control">
+  - Assign appropriate user types based on job roles
+  - Follow principle of least privilege
+  - Regularly review user permissions
+  - Deactivate accounts for departed employees
+  - Monitor login activity and unusual access patterns
+  - Implement session timeouts
+</Accordion>
+
+<Accordion title="Profile Management">
+  - Encourage users to keep contact information current
+  - Provide clear instructions for password changes
+  - Make photo uploads optional but encouraged
+  - Allow users to update their own profiles
+  - Require admin approval for sensitive field changes
+</Accordion>
+
+<Accordion title="Data Privacy">
+  - Protect personally identifiable information (PII)
+  - Implement proper access controls
+  - Log administrative changes to user accounts
+  - Comply with data protection regulations
+  - Provide users control over their data
+  - Securely delete user data when requested
+</Accordion>
+
+## Common Workflows
+
+### New Employee Onboarding
+
+1. HR provides employee information
+2. Admin creates user account with appropriate type
+3. System sends welcome email with login credentials
+4. Employee logs in and changes password
+5. Employee updates profile and uploads photo
+6. Employee completes system training
+
+### Employee Role Change
+
+1. Manager requests role change
+2. Admin updates user type in system
+3. New permissions take effect immediately
+4. User notified of access changes
+5. Admin documents reason for change
+
+### Employee Departure
+
+1. HR notifies IT of departure date
+2. Admin disables user account
+3. User data preserved for audit purposes
+4. Access revoked immediately
+5. Photo and personal files archived
+
+## Related Features
+
+- [Company Profile](/features/company) - Configure company-wide settings
+- Authentication - Login and security features (covered above)
+- Audit Logs - Track user actions and changes (coming soon)
+- Permissions - Fine-grained access control (coming soon)

@@ -1,0 +1,703 @@
+---
+title: 'Authentication Configuration'
+description: 'Complete guide to authentication setup, user management, and security configuration'
+---
+
+## Overview
+
+Sistema de Ventas uses Laravel's built-in authentication system with custom modifications to support username-based login and role-based access control. The system uses the custom `Usuario` model instead of Laravel's default `User` model.
+
+## Authentication Architecture
+
+The authentication system consists of:
+
+- **Custom User Model**: `App\Models\Usuario` mapped to the `usuario` table
+- **Username Login**: Uses `usuario` field instead of email for login
+- **Role-Based Access**: Two user types (Administrator and Employee)
+- **Session-Based Auth**: Web guard with session storage
+- **Password Reset**: Email-based password recovery
+- **Laravel Sanctum**: API token authentication support
+
+## User Model Configuration
+
+### Usuario Model
+
+The system uses a custom `Usuario` model defined in `app/Models/Usuario.php`:
+
+```php app/Models/Usuario.php
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+
+class Usuario extends Authenticatable
+{
+    use HasFactory;
+    
+    protected $table = "usuario";
+    protected $primaryKey = "id_usuario";
+    public $timestamps = false;
+    
+    protected $fillable = [
+        "tipo_usuario", 
+        "nombre", 
+        "apellido", 
+        "usuario", 
+        "password", 
+        "correo", 
+        "estado"
+    ];
+}
+```
+
+**Key Features:**
+- Custom table name: `usuario`
+- Custom primary key: `id_usuario`
+- Timestamps disabled: `$timestamps = false`
+- Mass assignable fields defined in `$fillable`
+
+### Database Schema
+
+The `usuario` table structure:
+
+```sql
+CREATE TABLE `usuario` (
+  `id_usuario` int NOT NULL AUTO_INCREMENT,
+  `tipo_usuario` int NOT NULL,
+  `nombre` varchar(100) DEFAULT NULL,
+  `apellido` varchar(100) DEFAULT NULL,
+  `usuario` varchar(100) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `direccion` varchar(100) DEFAULT NULL,
+  `correo` varchar(100) NOT NULL,
+  `foto` varchar(255) DEFAULT NULL,
+  `estado` tinyint NOT NULL,
+  PRIMARY KEY (`id_usuario`),
+  KEY `fk1` (`tipo_usuario`),
+  CONSTRAINT `fk1` FOREIGN KEY (`tipo_usuario`) 
+    REFERENCES `tipo_usuario` (`id_tipo`) 
+    ON DELETE CASCADE ON UPDATE CASCADE
+);
+```
+
+**Field Descriptions:**
+- `id_usuario`: Primary key
+- `tipo_usuario`: Foreign key to `tipo_usuario` table (1=admin, 2=employee)
+- `usuario`: Username field used for login
+- `password`: Bcrypt hashed password
+- `correo`: Email address (used for password reset)
+- `estado`: User status (1=active, 0=inactive)
+
+## Authentication Configuration
+
+### Auth Config File
+
+The authentication configuration is defined in `config/auth.php`:
+
+```php config/auth.php
+return [
+    'defaults' => [
+        'guard' => 'web',
+        'passwords' => 'users',
+    ],
+
+    'guards' => [
+        'web' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
+    ],
+
+    'providers' => [
+        'users' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Usuario::class,
+        ],
+    ],
+
+    'passwords' => [
+        'users' => [
+            'provider' => 'users',
+            'table' => 'password_resets',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+    ],
+
+    'password_timeout' => 10800,
+];
+```
+
+**Key Configuration Points:**
+
+<Steps>
+  <Step title="Default Guard">
+    The `web` guard uses session-based authentication
+  </Step>
+  
+  <Step title="User Provider">
+    The `users` provider uses the `Usuario` model via Eloquent
+  </Step>
+  
+  <Step title="Password Reset">
+    Password resets expire after 60 minutes with 60-second throttling
+  </Step>
+  
+  <Step title="Password Confirmation">
+    Password confirmation timeout is set to 10800 seconds (3 hours)
+  </Step>
+</Steps>
+
+## Login System
+
+### Username-Based Login
+
+The system uses username instead of email for login. This is configured in the `LoginController`:
+
+```php app/Http/Controllers/Auth/LoginController.php
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Providers\RouteServiceProvider;
+use Illuminate\Foundation\Auth\AuthenticatesUsers;
+
+class LoginController extends Controller
+{
+    use AuthenticatesUsers;
+
+    protected $redirectTo = RouteServiceProvider::HOME;
+
+    public function __construct()
+    {
+        $this->middleware('guest')->except('logout');
+    }
+    
+    public function username()
+    {
+        return 'usuario'; // Custom username field
+    }
+}
+```
+
+<Note>
+  The `username()` method overrides Laravel's default email-based login to use the `usuario` field instead.
+</Note>
+
+### Login Form
+
+When implementing the login form, use the `usuario` field:
+
+```html
+<form method="POST" action="{{ route('login') }}">
+    @csrf
+    
+    <div>
+        <label>Usuario</label>
+        <input type="text" name="usuario" value="{{ old('usuario') }}" required autofocus>
+        @error('usuario')
+            <span>{{ $message }}</span>
+        @enderror
+    </div>
+    
+    <div>
+        <label>Password</label>
+        <input type="password" name="password" required>
+        @error('password')
+            <span>{{ $message }}</span>
+        @enderror
+    </div>
+    
+    <div>
+        <input type="checkbox" name="remember" id="remember">
+        <label for="remember">Recordarme</label>
+    </div>
+    
+    <button type="submit">Iniciar Sesión</button>
+</form>
+```
+
+### Default Users
+
+The SQL schema includes these default users:
+
+<CodeGroup>
+```yaml Administrator
+Username: isai
+Password: password (hashed)
+Email: isai123@gmail.com
+Type: administrador (ID: 1)
+Status: Active
+```
+
+```yaml Employee
+Username: juan
+Password: password (hashed)
+Email: juan@gmail.com
+Type: empleado (ID: 2)
+Status: Active
+```
+</CodeGroup>
+
+<Warning>
+  The default password hash in the SQL file is:
+  `$2y$10$/7WvJEd3/IIMhpA68G49.O0n4HkSV0siV4c8HhbuKYSQNbnmM1m1S`
+  
+  Change these passwords immediately after installation!
+</Warning>
+
+## User Registration
+
+The registration controller is available but may need customization:
+
+```php app/Http/Controllers/Auth/RegisterController.php
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Providers\RouteServiceProvider;
+use App\Models\User;
+use Illuminate\Foundation\Auth\RegistersUsers;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+
+class RegisterController extends Controller
+{
+    use RegistersUsers;
+
+    protected $redirectTo = RouteServiceProvider::HOME;
+
+    public function __construct()
+    {
+        $this->middleware('guest');
+    }
+
+    protected function validator(array $data)
+    {
+        return Validator::make($data, [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+    }
+
+    protected function create(array $data)
+    {
+        return User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+        ]);
+    }
+}
+```
+
+<Warning>
+  The default `RegisterController` uses the `User` model. You'll need to modify it to use the `Usuario` model and adjust the validation rules to match your schema.
+</Warning>
+
+## Password Reset
+
+### Configuration
+
+Password reset functionality is configured in `config/auth.php`:
+
+```php
+'passwords' => [
+    'users' => [
+        'provider' => 'users',
+        'table' => 'password_resets',
+        'expire' => 60,        // Token expires after 60 minutes
+        'throttle' => 60,      // Throttle requests every 60 seconds
+    ],
+],
+```
+
+### Controllers
+
+<CodeGroup>
+```php ForgotPasswordController
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Foundation\Auth\SendsPasswordResetEmails;
+
+class ForgotPasswordController extends Controller
+{
+    use SendsPasswordResetEmails;
+}
+```
+
+```php ResetPasswordController
+namespace App\Http\Controllers\Auth;
+
+use App\Http\Controllers\Controller;
+use App\Providers\RouteServiceProvider;
+use Illuminate\Foundation\Auth\ResetsPasswords;
+
+class ResetPasswordController extends Controller
+{
+    use ResetsPasswords;
+
+    protected $redirectTo = RouteServiceProvider::HOME;
+}
+```
+</CodeGroup>
+
+### Database Table
+
+The password reset tokens are stored in the `password_resets` table:
+
+```php database/migrations/2014_10_12_100000_create_password_resets_table.php
+Schema::create('password_resets', function (Blueprint $table) {
+    $table->string('email')->index();
+    $table->string('token');
+    $table->timestamp('created_at')->nullable();
+});
+```
+
+### Mail Configuration
+
+Configure email settings in `.env` for password reset emails:
+
+```bash .env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@ventas.example.com
+MAIL_FROM_NAME="Sistema de Ventas"
+```
+
+<Note>
+  For Gmail, you'll need to generate an [App Password](https://support.google.com/accounts/answer/185833) instead of using your regular password.
+</Note>
+
+## Laravel Sanctum
+
+### Configuration
+
+Sanctum is configured in `config/sanctum.php` for API token authentication:
+
+```php config/sanctum.php
+return [
+    'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
+        '%s%s',
+        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
+        env('APP_URL') ? ','.parse_url(env('APP_URL'), PHP_URL_HOST) : ''
+    ))),
+
+    'guard' => ['web'],
+
+    'expiration' => null,
+
+    'middleware' => [
+        'verify_csrf_token' => App\Http\Middleware\VerifyCsrfToken::class,
+        'encrypt_cookies' => App\Http\Middleware\EncryptCookies::class,
+    ],
+];
+```
+
+**Key Settings:**
+- `stateful`: Domains that receive stateful API authentication cookies
+- `guard`: Authentication guards checked by Sanctum
+- `expiration`: Token expiration time (null = never expires)
+
+### Personal Access Tokens
+
+The `personal_access_tokens` table is created by migration:
+
+```bash
+php artisan migrate
+```
+
+This creates the table for storing API tokens:
+
+```php
+Schema::create('personal_access_tokens', function (Blueprint $table) {
+    $table->id();
+    $table->morphs('tokenable');
+    $table->string('name');
+    $table->string('token', 64)->unique();
+    $table->text('abilities')->nullable();
+    $table->timestamp('last_used_at')->nullable();
+    $table->timestamps();
+});
+```
+
+### Generating Tokens
+
+Generate API tokens for users:
+
+```php
+$user = Usuario::find(1);
+$token = $user->createToken('api-token')->plainTextToken;
+```
+
+### Using Tokens
+
+Authenticate API requests with the token:
+
+```bash
+curl -H "Authorization: Bearer {token}" http://example.com/api/user
+```
+
+## Role-Based Access Control
+
+### User Roles
+
+The system supports two user types defined in the `tipo_usuario` table:
+
+```sql
+CREATE TABLE `tipo_usuario` (
+  `id_tipo` int NOT NULL AUTO_INCREMENT,
+  `tipo` varchar(100) NOT NULL DEFAULT '',
+  PRIMARY KEY (`id_tipo`)
+);
+
+INSERT INTO `tipo_usuario` VALUES 
+  (1,'administrador'),
+  (2,'empleado');
+```
+
+### Checking User Roles
+
+Check user role in your application:
+
+```php
+// Check if user is administrator
+if (auth()->user()->tipo_usuario === 1) {
+    // Administrator access
+}
+
+// Check if user is employee
+if (auth()->user()->tipo_usuario === 2) {
+    // Employee access
+}
+```
+
+### Middleware Example
+
+Create custom middleware for role-based access:
+
+```php app/Http/Middleware/CheckUserType.php
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+
+class CheckUserType
+{
+    public function handle(Request $request, Closure $next, $type)
+    {
+        if (auth()->user()->tipo_usuario != $type) {
+            abort(403, 'No tienes permiso para acceder a esta sección.');
+        }
+
+        return $next($request);
+    }
+}
+```
+
+Register in `app/Http/Kernel.php`:
+
+```php
+protected $routeMiddleware = [
+    // ...
+    'user.type' => \App\Http\Middleware\CheckUserType::class,
+];
+```
+
+Use in routes:
+
+```php
+Route::middleware(['auth', 'user.type:1'])->group(function () {
+    // Administrator-only routes
+});
+
+Route::middleware(['auth', 'user.type:2'])->group(function () {
+    // Employee-only routes
+});
+```
+
+## Session Management
+
+### Session Configuration
+
+Configure sessions in `.env`:
+
+```bash .env
+SESSION_DRIVER=file
+SESSION_LIFETIME=120
+```
+
+### Session Storage Options
+
+<CodeGroup>
+```bash File (Default)
+SESSION_DRIVER=file
+```
+
+```bash Database
+SESSION_DRIVER=database
+# Run: php artisan session:table
+# Then: php artisan migrate
+```
+
+```bash Redis (Production)
+SESSION_DRIVER=redis
+REDIS_HOST=127.0.0.1
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+```
+</CodeGroup>
+
+## Security Best Practices
+
+<Warning>
+  Follow these security best practices:
+</Warning>
+
+1. **Strong Passwords**
+   - Enforce minimum password length (8+ characters)
+   - Require password complexity
+   - Use Laravel's password validation rules
+
+2. **Password Hashing**
+   ```php
+   use Illuminate\Support\Facades\Hash;
+   
+   // Hash password
+   $hashed = Hash::make($password);
+   
+   // Verify password
+   if (Hash::check($plainPassword, $hashedPassword)) {
+       // Password matches
+   }
+   ```
+
+3. **CSRF Protection**
+   - Always include `@csrf` in forms
+   - Laravel automatically protects POST, PUT, PATCH, DELETE requests
+
+4. **Rate Limiting**
+   ```php
+   use Illuminate\Support\Facades\RateLimiter;
+   
+   RateLimiter::for('login', function (Request $request) {
+       return Limit::perMinute(5)->by($request->input('usuario'));
+   });
+   ```
+
+5. **Secure Sessions**
+   - Use HTTPS in production
+   - Set secure cookie flags
+   - Configure proper session lifetime
+
+6. **User Status**
+   - Check `estado` field before allowing login
+   - Implement account deactivation
+
+## Testing Authentication
+
+### Artisan Tinker
+
+Test authentication in Tinker:
+
+```bash
+php artisan tinker
+```
+
+```php
+// Find a user
+$user = App\Models\Usuario::where('usuario', 'isai')->first();
+
+// Check password
+use Illuminate\Support\Facades\Hash;
+Hash::check('password', $user->password);
+
+// Authenticate user
+auth()->login($user);
+
+// Check authenticated user
+auth()->user();
+
+// Logout
+auth()->logout();
+```
+
+### Creating New Users
+
+Create users programmatically:
+
+```php
+use App\Models\Usuario;
+use Illuminate\Support\Facades\Hash;
+
+$user = Usuario::create([
+    'tipo_usuario' => 2,
+    'nombre' => 'Juan',
+    'apellido' => 'Pérez',
+    'usuario' => 'jperez',
+    'password' => Hash::make('SecurePassword123'),
+    'correo' => 'jperez@example.com',
+    'estado' => 1,
+]);
+```
+
+## Troubleshooting
+
+### Authentication Not Working
+
+1. **Clear authentication cache:**
+   ```bash
+   php artisan cache:clear
+   php artisan config:clear
+   php artisan view:clear
+   ```
+
+2. **Check user status:**
+   Ensure the user's `estado` field is `1` (active)
+
+3. **Verify password hash:**
+   ```php
+   Hash::check($plainPassword, $user->password)
+   ```
+
+### Password Reset Emails Not Sending
+
+1. Check mail configuration in `.env`
+2. Test mail connection:
+   ```bash
+   php artisan tinker
+   >>> Mail::raw('Test email', function($msg) { $msg->to('test@example.com')->subject('Test'); });
+   ```
+
+3. Check mail logs:
+   ```bash
+   tail -f storage/logs/laravel.log
+   ```
+
+### Session Expired Issues
+
+1. Increase session lifetime in `.env`:
+   ```bash
+   SESSION_LIFETIME=480  # 8 hours
+   ```
+
+2. Check session storage permissions:
+   ```bash
+   chmod -R 775 storage/framework/sessions
+   ```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Configuration" icon="database" href="/configuration/database">
+    Set up your database connection
+  </Card>
+  <Card title="Environment Setup" icon="gear" href="/configuration/environment">
+    Configure environment variables
+  </Card>
+</CardGroup>

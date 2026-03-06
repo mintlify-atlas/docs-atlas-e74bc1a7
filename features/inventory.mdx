@@ -1,0 +1,324 @@
+---
+title: Inventory Management
+description: Track stock levels, manage inventory entries, and monitor product availability in real-time
+---
+
+## Overview
+
+The Inventory Management system helps you maintain accurate stock levels, record inventory entries from suppliers, and monitor product availability. It integrates with product and supplier modules to provide comprehensive inventory tracking.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Stock Tracking" icon="boxes-stacked">
+    Monitor current stock levels for all products
+  </Card>
+  <Card title="Inventory Entries" icon="truck-ramp-box">
+    Record product arrivals from suppliers
+  </Card>
+  <Card title="Real-time Updates" icon="rotate">
+    Automatic stock updates with each transaction
+  </Card>
+  <Card title="Availability Management" icon="circle-check">
+    Track which products are in stock or need reordering
+  </Card>
+</CardGroup>
+
+## Understanding Inventory
+
+### Stock Levels
+
+Each product in the system maintains a stock quantity that represents:
+
+- **Current available inventory** - Units ready for sale
+- **Dynamic updates** - Automatic adjustments with sales and entries
+- **Low stock alerts** - Visual indicators when inventory runs low
+
+### Product Stock in Database
+
+Stock is stored directly in the product table:
+
+```php
+// ProductoController.php:58-66
+$registro = DB::table("producto")->insertGetId([
+    "id_categoria" => $request->txtcategoria,
+    "codigo" => $request->txtcodigoproducto,
+    "nombre" => $request->txtnombreproducto,
+    "precio" => $request->txtprecioproducto,
+    "stock" => $request->txtstock,  // Initial stock quantity
+    "descripcion" => $request->txtdescripcion,
+    "estado" => "1"
+]);
+```
+
+<Note>
+  When creating a product, you set its initial stock level. This can be updated later through inventory entries or manual adjustments.
+</Note>
+
+## Inventory Entries
+
+### What are Inventory Entries?
+
+Inventory entries record when new stock arrives from suppliers. Each entry tracks:
+
+- **Product** - Which product is being received
+- **Supplier** - Who provided the stock
+- **Quantity** - How many units arrived
+- **Date** - When the delivery occurred
+
+### Viewing Inventory Entries
+
+The inventory entries index displays a complete history of all stock arrivals:
+
+```php
+// EntradaController.php:15-30
+$datos = DB::select(" SELECT
+    entrada.*,
+    DATE(entrada.fecha) as 'fechaEntrada',
+    producto.nombre as 'nomProducto',
+    proveedor.nombre as 'nomProveedor',
+    proveedor.apellido
+    FROM entrada
+    INNER JOIN producto ON entrada.id_producto = producto.id_producto
+    INNER JOIN proveedor ON entrada.id_proveedor = proveedor.id_proveedor
+");
+
+$proveedor=DB::select("SELECT * FROM proveedor");
+$producto=DB::select("SELECT * FROM producto");
+```
+
+Each entry shows:
+- Entry ID and date
+- Product name and details
+- Supplier name
+- Quantity received
+
+## Stock Management Workflows
+
+<Accordion title="Receiving New Stock">
+  When new inventory arrives from a supplier:
+
+  1. Navigate to Inventory Entries
+  2. Create a new entry
+  3. Select the product
+  4. Select the supplier
+  5. Enter the quantity received
+  6. Save the entry
+
+  The system automatically:
+  - Records the transaction
+  - Updates the product's stock level
+  - Timestamps the entry
+</Accordion>
+
+<Accordion title="Manual Stock Adjustments">
+  You can manually adjust stock levels when editing a product:
+
+  ```php
+  // ProductoController.php:151-162
+  $actualizar = DB::update(
+      " update producto set id_categoria=?, codigo=?, nombre=?, precio=?, stock=?, descripcion=? where id_producto=? ",
+      [
+          $request->txtcategoria,
+          $request->txtcodigoproducto,
+          $request->txtnombreproducto,
+          $request->txtprecioproducto,
+          $request->txtstock,  // Updated stock value
+          $request->txtdescripcion,
+          $id
+      ]
+  );
+  ```
+
+  **Use cases for manual adjustments:**
+  - Correcting inventory count errors
+  - Recording damaged or lost items
+  - Adjusting after physical inventory counts
+  - Handling returns or exchanges
+</Accordion>
+
+<Accordion title="Stock Deduction (Sales)">
+  When products are sold, the system automatically reduces stock levels:
+
+  - Each sale transaction decrements product stock
+  - Stock updates happen in real-time
+  - Low stock alerts trigger when thresholds are reached
+  - Out-of-stock products are flagged in the system
+</Accordion>
+
+## Product Availability
+
+### Checking Stock Availability
+
+The product search API provides real-time stock information:
+
+```php
+// ProductoController.php:206-217
+$datos = DB::select(" SELECT
+    producto.*,
+    categoria.nombre as cate
+    FROM producto
+    INNER JOIN categoria ON producto.id_categoria = categoria.id_categoria 
+    where codigo like '%$id%' or producto.nombre like '%$id%' 
+    limit 5
+");
+
+return response()->json([
+    "success" => true,
+    "dato" => $datos  // Includes stock field
+], 200);
+```
+
+This allows sales staff to:
+- Verify product availability before completing sales
+- Check stock levels during customer inquiries
+- Identify alternative products when stock is low
+
+### Stock Status Indicators
+
+Products display different status indicators based on stock levels:
+
+- **In Stock** - Sufficient quantity available
+- **Low Stock** - Below reorder threshold
+- **Out of Stock** - Zero quantity available
+- **Inactive** - Product marked as unavailable
+
+## Inventory Validation
+
+### Stock Quantity Rules
+
+When creating or updating products, stock values must be:
+
+```php
+// ProductoController.php:46
+"txtstock" => "required|numeric"
+```
+
+- **Required** - Cannot be empty
+- **Numeric** - Must be a valid number
+- **Non-negative** - Typically should be zero or positive
+
+<Warning>
+  Ensure stock values are accurate. Incorrect inventory levels can lead to overselling or missed sales opportunities.
+</Warning>
+
+## Integration with Other Modules
+
+### Products
+
+Inventory is tightly coupled with product management:
+- Stock is a core product attribute
+- Product updates include stock adjustments
+- Product searches return stock information
+
+### Suppliers (Proveedores)
+
+Inventory entries link to supplier records:
+- Track which suppliers provide which products
+- Monitor delivery frequency and reliability
+- Analyze supplier performance
+
+### Sales
+
+Sales transactions affect inventory:
+- Stock decreases with each sale
+- Prevents overselling through availability checks
+- Generates reorder alerts based on sales velocity
+
+## Database Structure
+
+### Product Stock Field
+```sql
+-- In producto table
+stock INT  -- Current quantity available
+```
+
+### Inventory Entry Table
+```sql
+-- entrada table structure
+id_entrada INT PRIMARY KEY
+id_producto INT FOREIGN KEY
+id_proveedor INT FOREIGN KEY
+cantidad INT  -- Quantity received
+fecha DATETIME  -- Entry timestamp
+```
+
+## Best Practices
+
+<Accordion title="Regular Stock Counts">
+  Perform physical inventory counts regularly:
+
+  - Schedule monthly or quarterly counts
+  - Compare physical counts to system records
+  - Adjust discrepancies immediately
+  - Investigate significant variances
+  - Document reasons for adjustments
+</Accordion>
+
+<Accordion title="Reorder Points">
+  Set appropriate reorder thresholds:
+
+  - Analyze sales velocity for each product
+  - Consider supplier lead times
+  - Account for seasonal variations
+  - Set safety stock levels
+  - Automate reorder alerts
+</Accordion>
+
+<Accordion title="Supplier Management">
+  Maintain good supplier relationships:
+
+  - Record all deliveries accurately
+  - Verify quantities received
+  - Report discrepancies promptly
+  - Track supplier reliability
+  - Diversify supplier base for critical items
+</Accordion>
+
+<Accordion title="Inventory Accuracy">
+  Keep inventory data accurate:
+
+  - Train staff on proper entry procedures
+  - Validate data before saving
+  - Review inventory reports regularly
+  - Investigate unusual stock movements
+  - Implement stock audit procedures
+</Accordion>
+
+## Common Scenarios
+
+### Scenario 1: Receiving a Shipment
+
+1. Shipment arrives from supplier
+2. Verify quantity and product details
+3. Create inventory entry in the system
+4. Select correct product and supplier
+5. Enter received quantity
+6. System updates product stock automatically
+
+### Scenario 2: Low Stock Alert
+
+1. Product stock falls below threshold
+2. System flags product as low stock
+3. Manager reviews sales history
+4. Determines reorder quantity
+5. Contacts supplier
+6. Creates purchase order
+7. Receives shipment and creates entry
+
+### Scenario 3: Stock Discrepancy
+
+1. Physical count doesn't match system
+2. Investigate cause of discrepancy
+3. Review recent transactions
+4. Check for data entry errors
+5. Adjust stock through product edit
+6. Document reason for adjustment
+
+## Related Features
+
+- [Products](/features/products) - Manage product details and stock
+- [Categories](/features/categories) - Organize inventory by category
+- Suppliers - Manage supplier relationships (coming soon)
+- Sales - Process transactions that affect inventory (coming soon)
+- Reports - Analyze inventory metrics and trends (coming soon)

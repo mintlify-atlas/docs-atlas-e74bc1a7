@@ -1,0 +1,330 @@
+---
+title: "API Overview"
+description: "Understanding the Sistema de Ventas API architecture and structure"
+---
+
+## Architecture
+
+Sistema de Ventas follows Laravel's MVC (Model-View-Controller) architecture pattern with a clear separation of concerns:
+
+```
+Request → Routes → Middleware → Controller → Model → Database
+                                    ↓
+                                  View
+```
+
+### Key Components
+
+<CardGroup cols={2}>
+  <Card title="Routes" icon="route">
+    Defined in `routes/web.php`, routes map URLs to controller methods
+  </Card>
+  <Card title="Controllers" icon="code">
+    Handle business logic and coordinate between models and views
+  </Card>
+  <Card title="Models" icon="database">
+    Eloquent models represent database tables and relationships
+  </Card>
+  <Card title="Middleware" icon="shield">
+    Filter HTTP requests (authentication, verification, etc.)
+  </Card>
+</CardGroup>
+
+## Authentication System
+
+Sistema de Ventas uses Laravel's built-in authentication with custom modifications:
+
+### Authentication Features
+
+- **Laravel UI**: Provides authentication scaffolding
+- **Laravel Sanctum**: API token authentication
+- **Email Verification**: Required before accessing protected routes
+- **Password Reset**: Email-based password recovery
+- **Custom Usuario Model**: Uses `usuario` table instead of default `users`
+
+### Authentication Flow
+
+<Steps>
+  <Step title="User Registration">
+    Users register via `Auth::routes()` which provides:
+    - `/register` - Registration form
+    - `/login` - Login form
+    - `/logout` - Logout endpoint
+    - `/password/reset` - Password reset flow
+  </Step>
+
+  <Step title="Email Verification">
+    After registration, users must verify their email:
+    ```php routes/web.php:34
+    Auth::routes(['verify' => true]);
+    ```
+  </Step>
+
+  <Step title="Access Protected Routes">
+    All application routes require verification:
+    ```php
+    Route::get('mi-perfil', [PerfilController::class, 'index'])
+        ->middleware('verified');
+    ```
+  </Step>
+</Steps>
+
+## RESTful Resource Routes
+
+Several controllers use Laravel's resource routing for standard CRUD operations:
+
+### ProductoController
+
+```php routes/web.php:55
+Route::resource('productos', ProductoController::class)->middleware('verified');
+```
+
+Generates these routes:
+
+| Method | URI | Action | Route Name |
+|--------|-----|--------|------------|
+| GET | `/productos` | index | productos.index |
+| GET | `/productos/create` | create | productos.create |
+| POST | `/productos` | store | productos.store |
+| GET | `/productos/{id}` | show | productos.show |
+| GET | `/productos/{id}/edit` | edit | productos.edit |
+| PUT/PATCH | `/productos/{id}` | update | productos.update |
+| DELETE | `/productos/{id}` | destroy | productos.destroy |
+
+### CategoriaController
+
+```php routes/web.php:67
+Route::resource('categoria', CategoriaController::class)->middleware('verified');
+```
+
+Provides full CRUD operations for categories.
+
+### UsuarioController
+
+```php routes/web.php:70
+Route::resource('usuario', UsuarioController::class)->middleware('verified');
+```
+
+Manages user accounts with full CRUD functionality.
+
+### EntradaController
+
+```php routes/web.php:76
+Route::resource('entradas', EntradaController::class)->middleware('verified');
+```
+
+Handles inventory entry management.
+
+## Custom Routes
+
+In addition to resource routes, Sistema de Ventas defines custom routes for specific operations:
+
+### Profile Management
+
+```php routes/web.php:41-44
+Route::get("mi-perfil", [PerfilController::class, "index"])
+    ->name("usuario.perfil")->middleware('verified');
+    
+Route::post("actualizar-foto-perfil", [PerfilController::class, "actualizarIMG"])
+    ->name("perfil.actualizarIMG")->middleware('verified');
+    
+Route::get("eliminar-foto-perfil", [PerfilController::class, "eliminarFotoPerfil"])
+    ->name("perfil.eliminarFotoPerfil")->middleware('verified');
+    
+Route::put("actualizar-datos-perfil", [PerfilController::class, "actualizarDatos"])
+    ->name("perfil.actualizarDatos")->middleware('verified');
+```
+
+### Product Operations
+
+```php routes/web.php:56-58
+Route::post("buscar-producto", [ProductoController::class, "buscarProducto"])
+    ->name("producto.buscar")->middleware('verified');
+    
+Route::post("registrar-foto-producto", [ProductoController::class, "registrarFotoProducto"])
+    ->name("producto.registrarFotoProducto")->middleware('verified');
+    
+Route::delete("eliminar-productos", [ProductoController::class, "eliminarProducto"])
+    ->name("producto.eliminar")->middleware('verified');
+```
+
+### Company Management
+
+```php routes/web.php:48-51
+Route::get('empresa-index', [EmpresaController::class, 'index'])
+    ->name('empresa.index')->middleware('verified');
+    
+Route::post('empresa-update-{id}', [EmpresaController::class, 'update'])
+    ->name('empresa.update')->middleware('verified');
+    
+Route::post("actualizar-logo", [EmpresaController::class, "actualizarLogo"])
+    ->name("empresa.actualizarLogo")->middleware('verified');
+    
+Route::delete("eliminar-logo", [EmpresaController::class, "eliminarLogo"])
+    ->name("empresa.eliminarLogo")->middleware('verified');
+```
+
+## Middleware
+
+### Verified Middleware
+
+All protected routes use the `verified` middleware, which ensures:
+
+1. User is authenticated
+2. User's email is verified
+3. Redirects to verification notice if not verified
+
+```php
+->middleware('verified')
+```
+
+### Web Middleware Group
+
+All routes automatically receive the `web` middleware group which provides:
+
+- Session state
+- CSRF protection
+- Cookie encryption
+- Request validation
+
+## Database Query Approach
+
+Sistema de Ventas uses a mix of query approaches:
+
+### Raw SQL Queries
+
+Many controllers use `DB::select()` for complex queries:
+
+```php ProductoController.php:18-22
+$datos = DB::table("producto")
+    ->join("categoria", "producto.id_categoria", "=", "categoria.id_categoria")
+    ->select("producto.*", "categoria.nombre as categoria")
+    ->paginate(10);
+```
+
+### Query Builder
+
+For simpler operations, the query builder is used:
+
+```php ProductoController.php:58-66
+$registro = DB::table("producto")->insertGetId([
+    "id_categoria" => $request->txtcategoria,
+    "codigo" => $request->txtcodigoproducto,
+    "nombre" => $request->txtnombreproducto,
+    "precio" => $request->txtprecioproducto,
+    "stock" => $request->txtstock,
+    "descripcion" => $request->txtdescripcion,
+    "estado" => "1"
+]);
+```
+
+### Eloquent Models
+
+The `Usuario` model extends `Authenticatable` for authentication:
+
+```php Usuario.php:8-17
+class Usuario extends Authenticatable
+{
+    use HasFactory;
+    protected $table = "usuario";
+    protected $primaryKey = "id_usuario";
+    public $timestamps = false;
+    protected $fillable = [
+        "tipo_usuario", "nombre", "apellido", "usuario", "password", "correo", "estado"
+    ];
+}
+```
+
+## Response Types
+
+### View Responses
+
+Most routes return Blade views:
+
+```php
+return view("vistas/productos/indexProducto", compact("datos"))
+    ->with("categoria", $categoria);
+```
+
+### Redirect Responses
+
+After form submissions:
+
+```php
+return back()->with("CORRECTO", "Producto registrado correctamente");
+return redirect()->route("productos.index")->with("CORRECTO", "Success");
+```
+
+### JSON Responses
+
+For AJAX requests:
+
+```php ProductoController.php:200-217
+return response()->json([
+    "success" => true,
+    "dato" => $datos
+], 200);
+```
+
+## Validation
+
+Controllers use Laravel's request validation:
+
+```php ProductoController.php:41-48
+$request->validate([
+    "txtcategoria" => "required",
+    "txtcodigoproducto" => "required",
+    "txtnombreproducto" => "required",
+    "txtprecioproducto" => "required|numeric",
+    "txtstock" => "required|numeric",
+    "txtfoto" => "mimes:png,jpg,jpeg"
+]);
+```
+
+## File Uploads
+
+The system handles file uploads for:
+
+- Product images (`storage/app/public/FOTO-PRODUCTOS/`)
+- User avatars
+- Company logos
+
+Example from ProductoController:
+
+```php ProductoController.php:70-77
+$foto = $request->file("txtfoto");
+$nombreFoto = $registro . "-" . $foto->getClientOriginalName();
+$ruta = storage_path("app/public/FOTO-PRODUCTOS/" . $nombreFoto);
+copy($foto, $ruta);
+```
+
+## Error Handling
+
+Controllers use try-catch blocks for error handling:
+
+```php
+try {
+    $res = DB::insert(" insert into categoria(nombre) values(?) ", [
+        $request->txtnombrecategoria
+    ]);
+} catch (\Throwable $th) {
+    $res = 0;
+}
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Routes Reference" icon="route" href="/api/routes">
+    Complete route listing with details
+  </Card>
+  <Card title="Controllers" icon="code" href="/api/controllers">
+    Detailed controller documentation
+  </Card>
+  <Card title="Database Schema" icon="database" href="/database/schema">
+    Database structure and relationships
+  </Card>
+  <Card title="Models" icon="table" href="/database/models">
+    Eloquent model documentation
+  </Card>
+</CardGroup>

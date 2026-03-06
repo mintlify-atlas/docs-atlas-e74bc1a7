@@ -1,0 +1,259 @@
+---
+title: Category Management
+description: Organize your product catalog with categories for better navigation and inventory control
+---
+
+## Overview
+
+Categories help you organize products into logical groups, making it easier to browse inventory, generate reports, and manage your product catalog. Each product must be assigned to a category.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Category CRUD" icon="folder">
+    Create, read, update, and delete product categories
+  </Card>
+  <Card title="Duplicate Prevention" icon="shield-check">
+    Automatic validation to prevent duplicate category names
+  </Card>
+  <Card title="Product Organization" icon="layer-group">
+    Link multiple products to each category
+  </Card>
+  <Card title="Simple Management" icon="sliders">
+    Streamlined interface for quick category operations
+  </Card>
+</CardGroup>
+
+## Category Workflow
+
+### Creating a Category
+
+Adding a new category is straightforward:
+
+1. Navigate to the category management section
+2. Enter a unique category name
+3. Submit the form
+
+The system automatically validates for duplicate names before creating the category.
+
+### Validation Rules
+
+Categories have minimal but important validation:
+
+```php
+// CategoriaController.php:32-34
+$request->validate([
+    "txtnombrecategoria" => "required",
+]);
+```
+
+### Duplicate Detection
+
+The system prevents duplicate category names to maintain data integrity:
+
+```php
+// CategoriaController.php:37-40
+$existeCategoria = DB::select(
+    " select count(*) as total from categoria where nombre=? ", 
+    [$request->txtnombrecategoria]
+);
+if ($existeCategoria[0]->total >= 1) {
+    return redirect()->back()->with("INCORRECTO", "El nombre de la categoria ya existe");
+}
+```
+
+<Note>
+  Category names must be unique across the entire system. If you try to create a category with an existing name, you'll receive an error message.
+</Note>
+
+## Viewing Categories
+
+The category index displays all categories in a simple list view:
+
+```php
+// CategoriaController.php:15-16
+$categorias = DB::select(" select * from categoria ");
+return view("vistas/categoria/indexCategoria", compact("categorias"));
+```
+
+Each category listing shows:
+- Category ID
+- Category name
+- Action buttons (edit, delete)
+
+## Updating Categories
+
+### Editing Category Names
+
+You can update category names at any time. The system ensures the new name doesn't conflict with existing categories:
+
+```php
+// CategoriaController.php:86-93
+$existeCategoria=DB::select(
+    " select count(*) as total from categoria where nombre=? and id_categoria!=? ",[
+        $request->txtnombrecategoria,
+        $id
+    ]
+);
+
+if($existeCategoria[0]->total >= 1){
+    return redirect()->back()->with("INCORRECTO", "El nombre de la categoria ya existe");
+}
+```
+
+<Accordion title="Update Process">
+  When updating a category:
+
+  1. The system validates the required fields
+  2. Checks for duplicate names (excluding the current category)
+  3. Updates the database record
+  4. Returns success or error feedback
+
+  ```php
+  // CategoriaController.php:96-104
+  try {
+      $res=DB::update(
+          " update categoria set nombre=? where id_categoria=? ",[
+              $request->txtnombrecategoria,
+              $id
+          ]
+      );
+      $res=1;
+  } catch (\Throwable $th) {
+      $res=0;
+  }
+  ```
+</Accordion>
+
+## Deleting Categories
+
+Categories can be deleted when they're no longer needed:
+
+```php
+// CategoriaController.php:118-128
+try {
+    $res=DB::delete(" delete from categoria where id_categoria=? ", [$id]);
+} catch (\Throwable $th) {
+    $res=0;
+}
+
+if ($res == 1) {
+    return redirect()->route("categoria.index")->with("CORRECTO", "Categoria eliminada correctamente");
+} else {
+    return redirect()->route("categoria.index")->with("INCORRECTO", "Error al eliminar la categoria");
+}
+```
+
+<Warning>
+  **Important:** You cannot delete a category that has associated products. First reassign or delete all products in the category, then delete the category itself.
+</Warning>
+
+## How Categories Organize Products
+
+Categories create a hierarchical structure for your inventory:
+
+### Category-Product Relationship
+
+- Each product belongs to exactly one category
+- Each category can contain multiple products
+- Products reference their category via `id_categoria` foreign key
+
+### Usage in Product Management
+
+When creating or editing products, users select from available categories:
+
+```php
+// ProductoController.php:18-24
+$categoria = DB::select("select * from categoria");
+$datos = DB::table("producto")
+    ->join("categoria", "producto.id_categoria", "=", "categoria.id_categoria")
+    ->select("producto.*", "categoria.nombre as categoria")
+    ->paginate(10);
+return view("vistas/productos/indexProducto", compact("datos"))
+    ->with("categoria", $categoria);
+```
+
+### Benefits of Using Categories
+
+<CardGroup cols={2}>
+  <Card title="Better Navigation" icon="compass">
+    Quickly find related products by browsing categories
+  </Card>
+  <Card title="Inventory Reports" icon="chart-bar">
+    Generate category-based sales and inventory reports
+  </Card>
+  <Card title="Organized Catalog" icon="books">
+    Maintain a structured product hierarchy
+  </Card>
+  <Card title="Faster Search" icon="bolt">
+    Filter products by category for targeted results
+  </Card>
+</CardGroup>
+
+## Database Structure
+
+Categories use a simple database schema:
+
+- `id_categoria` - Primary key (auto-increment)
+- `nombre` - Category name (unique, required)
+
+## Best Practices
+
+<Accordion title="Naming Categories">
+  Choose clear, descriptive category names:
+
+  - Use consistent naming conventions
+  - Keep names concise but meaningful
+  - Consider your business logic and reporting needs
+  - Examples: "Electronics", "Clothing", "Food & Beverages"
+</Accordion>
+
+<Accordion title="Category Structure">
+  Plan your category structure carefully:
+
+  - Start with broad categories
+  - Don't create too many categories initially
+  - You can always add more categories later
+  - Consider how customers will search for products
+</Accordion>
+
+<Accordion title="Maintenance">
+  Keep your categories organized:
+
+  - Regularly review unused categories
+  - Merge similar categories when appropriate
+  - Update category names to reflect current inventory
+  - Ensure all products are properly categorized
+</Accordion>
+
+## Common Use Cases
+
+### Retail Store
+- Clothing
+- Footwear
+- Accessories
+- Home Goods
+
+### Restaurant
+- Appetizers
+- Main Courses
+- Desserts
+- Beverages
+
+### Electronics Store
+- Computers
+- Mobile Devices
+- Audio Equipment
+- Accessories
+
+### Pharmacy
+- Prescription Medications
+- Over-the-Counter
+- Personal Care
+- Medical Supplies
+
+## Related Features
+
+- [Products](/features/products) - Manage products within categories
+- [Inventory](/features/inventory) - Track stock by category
+- Sales Reports - Analyze sales by category (coming soon)
