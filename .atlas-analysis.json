@@ -1,0 +1,80 @@
+{
+  "projectType": "saas",
+  "projectName": "Sistema de Ventas",
+  "projectDescription": "A comprehensive sales management system built with Laravel for managing products, inventory, categories, users, and company information.",
+  "theme": "almond",
+  "primaryColor": "#040404",
+  "lightColor": "#ef370f",
+  "darkColor": "#f79d72",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/products",
+              "features/categories",
+              "features/inventory",
+              "features/users",
+              "features/company"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/database",
+              "configuration/environment",
+              "configuration/authentication"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Developer",
+        "groups": [
+          {
+            "group": "API Reference",
+            "pages": [
+              "api/overview",
+              "api/routes",
+              "api/controllers"
+            ]
+          },
+          {
+            "group": "Database",
+            "pages": [
+              "database/schema",
+              "database/models"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Product management with categories and pricing",
+    "Inventory tracking and stock management",
+    "User authentication and authorization",
+    "Company profile management",
+    "Image upload for products and profiles",
+    "Search and filter functionality"
+  ],
+  "publicApiSurface": [
+    "ProductoController (index, create, store, show, update, destroy, buscarProducto)",
+    "CategoriaController (index, create, store, update, destroy)",
+    "EntradaController (index - inventory entries)",
+    "UsuarioController (user management)",
+    "EmpresaController (company management)",
+    "PerfilController (user profile management)"
+  ]
+}
